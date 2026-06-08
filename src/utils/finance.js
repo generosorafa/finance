@@ -83,6 +83,24 @@ export function getCategory(categories, id) {
   };
 }
 
+export function getCardIdFromPayment(payment) {
+  return typeof payment === 'string' && payment.startsWith('CC::')
+    ? payment.slice(4)
+    : '';
+}
+
+export function transactionCardId(transaction) {
+  return transaction.linkedCardId || getCardIdFromPayment(transaction.payment);
+}
+
+export function transactionsForCardMonth(transactions, cardId, monthIndex, year) {
+  return transactions.filter((item) => (
+    item.type === 'despesa'
+    && transactionCardId(item) === cardId
+    && isSameMonth(item.date, monthIndex, year)
+  ));
+}
+
 export function exportTransactionsCsv(transactions, categories) {
   const headers = ['Data', 'Descricao', 'Tipo', 'Categoria', 'Pagamento', 'Necessidade', 'Natureza', 'Recorrente', 'Valor', 'Observacao'];
   const rows = [headers];
@@ -111,4 +129,3 @@ function escapeCsvCell(value) {
   if (/[;"\n\r]/.test(text)) return `"${text.replace(/"/g, '""')}"`;
   return text;
 }
-

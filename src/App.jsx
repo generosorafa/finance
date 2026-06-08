@@ -32,6 +32,7 @@ import { useFinanceData } from './hooks/useFinanceData.js';
 import {
   exportTransactionsCsv,
   formatCurrency,
+  getCardIdFromPayment,
   getCategory,
   installmentsForMonth,
   isSameMonth,
@@ -40,6 +41,7 @@ import {
   monthLabel,
   summarizeMonth,
   today,
+  transactionsForCardMonth,
   walletBalance,
 } from './utils/finance.js';
 
@@ -317,10 +319,12 @@ function TransactionForm({ actions, categories, cards, paymentMethods, compact =
   async function submit(event) {
     event.preventDefault();
     if (!form.desc.trim() || !Number(form.amount)) return;
+    const linkedCardId = getCardIdFromPayment(form.payment);
     const item = {
       ...form,
       id: makeId('tx'),
       amount: Number(form.amount),
+      linkedCardId,
       createdAt: Date.now(),
     };
     await actions.save('transactions', item);
@@ -398,7 +402,7 @@ function TransactionList({ data, items, actions, compact = false }) {
             </div>
             <div className="row-main">
               <strong>{item.desc}</strong>
-              <span>{item.date || '-'} · {category.name} · {item.payment || '-'}</span>
+              <span>{item.date || '-'} · {category.name} · {paymentLabel(item.payment, data.cards)}</span>
             </div>
             {!compact && item.recurrent === 'sim' && <span className="pill">recorrente</span>}
             <strong className={item.type === 'receita' ? 'money-positive' : 'money-negative'}>
@@ -426,6 +430,10 @@ function CardsPage({ data, actions, currentMonth, currentYear }) {
     categoryId: data.categories[0]?.id || '',
   });
   const monthInstallments = installmentsForMonth(data.installments, currentMonth, currentYear);
+  const directCardTransactions = data.cards.flatMap((card) => (
+    transactionsForCardMonth(data.transactions, card.id, currentMonth, currentYear)
+      .map((item) => ({ ...item, cardName: card.name }))
+  ));
 
   useEffect(() => {
     setInstallment((current) => ({
@@ -509,9 +517,12 @@ function CardsPage({ data, actions, currentMonth, currentYear }) {
         </div>
         <div className="card-grid">
           {data.cards.map((item) => {
-            const total = monthInstallments
+            const installmentTotal = monthInstallments
               .filter((entry) => entry.cardId === item.id)
               .reduce((sum, entry) => sum + Number(entry.parcelValue || 0), 0);
+            const transactionTotal = transactionsForCardMonth(data.transactions, item.id, currentMonth, currentYear)
+              .reduce((sum, entry) => sum + Number(entry.amount || 0), 0);
+            const total = installmentTotal + transactionTotal;
             return (
               <div className="credit-card" key={item.id} style={{ borderColor: item.color }}>
                 <div>
@@ -519,6 +530,7 @@ function CardsPage({ data, actions, currentMonth, currentYear }) {
                   <span>Fecha dia {item.closeDay} · Vence dia {item.dueDay}</span>
                 </div>
                 <b>{formatCurrency(total)}</b>
+                <small>Compras {formatCurrency(transactionTotal)} · Parcelas {formatCurrency(installmentTotal)}</small>
                 <button className="icon-button danger" onClick={() => actions.remove('cards', item.id)} title="Excluir" type="button"><Trash2 size={16} /></button>
               </div>
             );
@@ -535,6 +547,20 @@ function CardsPage({ data, actions, currentMonth, currentYear }) {
               <button className="icon-button danger" onClick={() => actions.remove('installments', item.id)} title="Excluir" type="button"><Trash2 size={16} /></button>
             </div>
           ))}
+        </div>
+        <div className="panel-subtitle spacing-top">Compras diretas no cartão</div>
+        <div className="list spacing-top">
+          {directCardTransactions.map((item) => (
+            <div className="list-row" key={item.id}>
+              <div className="row-main">
+                <strong>{item.desc}</strong>
+                <span>{item.date} · {item.cardName}</span>
+              </div>
+              <strong className="money-negative">{formatCurrency(item.amount)}</strong>
+              <button className="icon-button danger" onClick={() => actions.remove('transactions', item.id)} title="Excluir" type="button"><Trash2 size={16} /></button>
+            </div>
+          ))}
+          {!directCardTransactions.length && <EmptyState title="Nenhuma compra direta em cartao neste mes." />}
         </div>
       </section>
     </div>
@@ -976,6 +1002,13 @@ function CategoryBars({ items, total }) {
 function CategoryIcon({ category }) {
   const Icon = ICONS[category.emoji] || Package;
   return <Icon size={18} />;
+}
+
+function paymentLabel(payment, cards) {
+  const cardId = getCardIdFromPayment(payment);
+  if (!cardId) return payment || '-';
+  const card = cards.find((item) => item.id === cardId);
+  return card ? `Cartao ${card.name}` : 'Cartao';
 }
 
 function EmptyState({ title }) {
