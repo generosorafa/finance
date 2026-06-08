@@ -7,7 +7,7 @@ export default defineConfig({
     rollupOptions: {
       output: {
         manualChunks: {
-          firebase: ['firebase/app', 'firebase/auth', 'firebase/firestore'],
+          firebase: ['firebase/app', 'firebase/auth', 'firebase/firestore', 'firebase/app-check'],
           icons: ['lucide-react'],
           react: ['react', 'react-dom'],
         },
@@ -15,4 +15,3 @@ export default defineConfig({
     },
   },
 });
-

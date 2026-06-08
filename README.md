@@ -22,7 +22,19 @@ npm run dev
 
 - Authentication: login com Google.
 - Firestore: dados salvos por usuario em `users/{uid}`.
-- Storage nao e usado nesta primeira base.
+- App Check: preparado por variavel de ambiente, mas sem enforcement ate configurarmos no console.
+- Storage e Realtime Database nao sao usados nesta base.
 
 Publique as regras de `firestore.rules` no console do Firebase antes de usar em producao.
 
+## Ambientes
+
+- `.env.local`: Firebase de desenvolvimento, nao versionado.
+- `.env.example`: modelo seguro para novas maquinas.
+- Produção deve usar outro projeto Firebase, por exemplo `finance-prod`.
+
+## Validacao
+
+```bash
+npm run build
+```

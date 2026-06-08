@@ -46,3 +46,29 @@ users/{uid}/config/settings
 
 As chaves Web do Firebase nao sao senha privada. A protecao real vem do login e das regras do Firestore.
 
+## 6. App Check
+
+O codigo ja suporta App Check, mas ele deve ser ativado em duas fases:
+
+1. Registrar o app em App Check no Firebase console.
+2. Preencher no `.env.local`:
+
+```env
+VITE_FIREBASE_APPCHECK_SITE_KEY=sua_chave_publica
+VITE_FIREBASE_APPCHECK_PROVIDER=recaptcha-enterprise
+```
+
+Depois que o login e as gravacoes forem testados com App Check recebendo tokens, podemos ativar enforcement para Firestore no console.
+
+Nao ative enforcement antes da chave estar configurada no app, porque isso bloqueia leituras e escritas.
+
+## 7. Dominios autorizados
+
+Em Authentication > Settings > Authorized domains, mantenha:
+
+```txt
+localhost
+127.0.0.1
+```
+
+Quando publicarmos, adicione tambem o dominio final do app.

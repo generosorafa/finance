@@ -2,9 +2,112 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-    match /users/{userId}/{document=**} {
-      allow read, write: if request.auth != null && request.auth.uid == userId;
+    function isOwner(userId) {
+      return request.auth != null && request.auth.uid == userId;
+    }
+
+    function validOwnedDoc(docId, allowedKeys) {
+      return request.resource.data.keys().hasOnly(allowedKeys)
+        && request.resource.data.keys().hasAll(['id'])
+        && request.resource.data.id == docId;
+    }
+
+    function validTransaction(docId) {
+      return validOwnedDoc(docId, [
+        'id', 'type', 'desc', 'amount', 'date', 'category', 'payment',
+        'necessity', 'nature', 'recurrent', 'linkedCardId', 'note',
+        'createdAt', 'recurrentRootId', 'generatedMonth'
+      ])
+        && request.resource.data.type in ['receita', 'despesa']
+        && request.resource.data.desc is string
+        && request.resource.data.amount is number
+        && request.resource.data.amount >= 0
+        && request.resource.data.date is string
+        && request.resource.data.category is string;
+    }
+
+    function validSettings() {
+      return request.resource.data.keys().hasOnly([
+        'paymentMethods', 'initialBalance', 'initialDate'
+      ]);
+    }
+
+    match /users/{userId} {
+      allow read, write: if false;
+
+      match /transactions/{docId} {
+        allow read, delete: if isOwner(userId);
+        allow create, update: if isOwner(userId) && validTransaction(docId);
+      }
+
+      match /installments/{docId} {
+        allow read, delete: if isOwner(userId);
+        allow create, update: if isOwner(userId) && validOwnedDoc(docId, [
+          'id', 'desc', 'total', 'parcels', 'purchaseDate', 'firstMonth',
+          'cardId', 'categoryId', 'parcelValue', 'createdAt'
+        ]);
+      }
+
+      match /cards/{docId} {
+        allow read, delete: if isOwner(userId);
+        allow create, update: if isOwner(userId) && validOwnedDoc(docId, [
+          'id', 'name', 'limit', 'closeDay', 'dueDay', 'color', 'createdAt'
+        ]);
+      }
+
+      match /categories/{docId} {
+        allow read, delete: if isOwner(userId);
+        allow create, update: if isOwner(userId) && validOwnedDoc(docId, [
+          'id', 'name', 'emoji', 'color', 'special', 'createdAt'
+        ]);
+      }
+
+      match /wallet/{docId} {
+        allow read, delete: if isOwner(userId);
+        allow create, update: if isOwner(userId) && validOwnedDoc(docId, [
+          'id', 'type', 'desc', 'amount', 'date', 'createdAt',
+          'invoiceKey', 'cardId'
+        ]);
+      }
+
+      match /investments/{docId} {
+        allow read, delete: if isOwner(userId);
+        allow create, update: if isOwner(userId) && validOwnedDoc(docId, [
+          'id', 'name', 'type', 'qty', 'avgPrice', 'value',
+          'updated', 'createdAt'
+        ]);
+      }
+
+      match /goals/{docId} {
+        allow read, delete: if isOwner(userId);
+        allow create, update: if isOwner(userId) && validOwnedDoc(docId, [
+          'id', 'name', 'target', 'current', 'deadline', 'createdAt'
+        ]);
+      }
+
+      match /debts/{docId} {
+        allow read, delete: if isOwner(userId);
+        allow create, update: if isOwner(userId) && validOwnedDoc(docId, [
+          'id', 'name', 'creditor', 'total', 'paid', 'deadline', 'createdAt'
+        ]);
+      }
+
+      match /allocations/{docId} {
+        allow read, delete: if isOwner(userId);
+        allow create, update: if isOwner(userId) && validOwnedDoc(docId, [
+          'id', 'type', 'targetId', 'amount', 'remaining', 'createdAt'
+        ]);
+      }
+
+      match /config/{configId} {
+        allow read: if isOwner(userId) && configId == 'settings';
+        allow create, update: if isOwner(userId) && configId == 'settings' && validSettings();
+        allow delete: if false;
+      }
+
+      match /{document=**} {
+        allow read, write: if false;
+      }
     }
   }
 }
-

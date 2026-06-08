@@ -1,5 +1,10 @@
 import { initializeApp } from 'firebase/app';
 import {
+  ReCaptchaEnterpriseProvider,
+  ReCaptchaV3Provider,
+  initializeAppCheck,
+} from 'firebase/app-check';
+import {
   GoogleAuthProvider,
   getAuth,
   onAuthStateChanged,
@@ -28,6 +33,19 @@ const firebaseConfig = {
 export const isFirebaseConfigured = Object.values(firebaseConfig).every(Boolean);
 
 const app = isFirebaseConfigured ? initializeApp(firebaseConfig) : null;
+const appCheckSiteKey = import.meta.env.VITE_FIREBASE_APPCHECK_SITE_KEY;
+const appCheckProvider = import.meta.env.VITE_FIREBASE_APPCHECK_PROVIDER || 'recaptcha-enterprise';
+
+if (app && appCheckSiteKey) {
+  const provider = appCheckProvider === 'recaptcha-v3'
+    ? new ReCaptchaV3Provider(appCheckSiteKey)
+    : new ReCaptchaEnterpriseProvider(appCheckSiteKey);
+
+  initializeAppCheck(app, {
+    provider,
+    isTokenAutoRefreshEnabled: true,
+  });
+}
 
 export const auth = app ? getAuth(app) : null;
 export const db = app ? getFirestore(app) : null;
@@ -79,4 +97,3 @@ export async function saveSettings(userId, settings) {
   const ref = doc(db, 'users', userId, 'config', 'settings');
   await setDoc(ref, settings, { merge: true });
 }
-

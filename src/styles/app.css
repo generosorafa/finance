@@ -37,6 +37,11 @@ button {
   cursor: pointer;
 }
 
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.65;
+}
+
 .app-shell {
   min-height: 100vh;
   display: grid;
@@ -541,6 +546,12 @@ select:focus {
   background: var(--surface);
 }
 
+.notice.compact {
+  margin: 0;
+  padding: 12px;
+  text-align: left;
+}
+
 .notice.error {
   border-color: rgba(255, 116, 109, 0.45);
   color: var(--negative);
@@ -648,4 +659,3 @@ select:focus {
     flex-direction: column;
   }
 }
-
