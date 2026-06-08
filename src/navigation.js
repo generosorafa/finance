@@ -1,0 +1,50 @@
+import {
+  BadgeAlert,
+  BookOpen,
+  BriefcaseBusiness,
+  Car,
+  CreditCard,
+  Download,
+  Gamepad2,
+  HeartPulse,
+  Home,
+  LayoutDashboard,
+  ListChecks,
+  Package,
+  PieChart,
+  Settings,
+  Shirt,
+  Smartphone,
+  Target,
+  TrendingUp,
+  Wallet,
+} from 'lucide-react';
+
+export const NAV_ITEMS = [
+  { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
+  { id: 'transactions', label: 'Transacoes', icon: ListChecks },
+  { id: 'cards', label: 'Cartoes', icon: CreditCard },
+  { id: 'categories', label: 'Categorias', icon: PieChart },
+  { id: 'wallet', label: 'Carteira', icon: Wallet },
+  { id: 'investments', label: 'Investimentos', icon: TrendingUp },
+  { id: 'goals', label: 'Metas', icon: Target },
+  { id: 'debts', label: 'Dividas', icon: BadgeAlert },
+  { id: 'reports', label: 'Relatorios', icon: Download },
+  { id: 'settings', label: 'Ajustes', icon: Settings },
+];
+
+export const CATEGORY_ICON_MAP = {
+  BadgeAlert,
+  BookOpen,
+  BriefcaseBusiness,
+  Car,
+  Gamepad2,
+  HeartPulse,
+  Home,
+  Package,
+  Shirt,
+  Smartphone,
+  Target,
+  TrendingUp,
+};
+
