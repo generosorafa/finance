@@ -773,6 +773,43 @@ select:focus {
   background: var(--surface-2);
 }
 
+.alert-list {
+  display: grid;
+  gap: 8px;
+}
+
+.alert-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface-2);
+}
+
+.alert-row.high {
+  border-color: rgba(255, 116, 109, 0.45);
+}
+
+.alert-row.medium {
+  border-color: rgba(225, 196, 92, 0.35);
+}
+
+.alert-row.high > svg {
+  color: var(--negative);
+}
+
+.alert-row.medium > svg,
+.alert-row.low > svg {
+  color: var(--accent);
+}
+
+.alert-row > strong {
+  white-space: nowrap;
+}
+
 .bar-label {
   display: flex;
   justify-content: space-between;
@@ -1249,6 +1286,11 @@ select:focus {
   }
 
   .asset-row {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .alert-row {
     align-items: stretch;
     flex-direction: column;
   }

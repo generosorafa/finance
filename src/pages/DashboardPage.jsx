@@ -1,11 +1,12 @@
 import { useState } from 'react';
-import { Plus, X } from 'lucide-react';
+import { AlertTriangle, Info, Plus, X } from 'lucide-react';
 import { CategoryBars, EmptyState, StatCard } from '../components/ui.jsx';
 import { TransactionForm } from '../components/transactions/TransactionForm.jsx';
 import { TransactionList } from '../components/transactions/TransactionList.jsx';
 import { MONTHS } from '../data/defaults.js';
 import {
   categorySpendingForMonth,
+  financeAlerts,
   fixedItemsForMonth,
   formatCurrency,
   monthlyProjection,
@@ -21,6 +22,7 @@ export function DashboardPage({ data, actions, paymentMethods, currentMonth, cur
   const summary = summarizeMonth(data, currentMonth, currentYear);
   const balance = walletBalance(data);
   const projection = monthlyProjection(data, currentMonth, currentYear);
+  const alerts = financeAlerts(data, currentMonth, currentYear);
   const ledgerEntries = monthlyLedgerEntries(data, currentMonth, currentYear);
   const recent = [...ledgerEntries].sort((a, b) => (b.sortDate || '').localeCompare(a.sortDate || '')).slice(0, 6);
   const yearlyTotals = Array.from({ length: 12 }, (_, monthIndex) => {
@@ -91,6 +93,32 @@ export function DashboardPage({ data, actions, paymentMethods, currentMonth, cur
           <span>Despesas projetadas {formatCurrency(projection.projectedExpenses)}</span>
           <span>Faturas abertas {formatCurrency(projection.openInvoiceTotal)}</span>
           <span>Fixos pendentes {formatCurrency(projection.pendingFixedTotal)}</span>
+        </div>
+      </section>
+
+      <section className="panel span-2">
+        <div className="panel-header">
+          <div>
+            <h2>Alertas e pendencias</h2>
+            <p>Prioridades do mes para evitar sustos no fechamento.</p>
+          </div>
+          <span className={`pill ${alerts.some((item) => item.severity === 'high') ? 'warning' : alerts.length ? 'muted' : 'positive'}`}>
+            {alerts.length ? `${alerts.length} ponto(s)` : 'Tudo certo'}
+          </span>
+        </div>
+        <div className="alert-list">
+          {alerts.slice(0, 6).map((item) => (
+            <div className={`alert-row ${item.severity}`} key={item.id}>
+              {item.severity === 'high' ? <AlertTriangle size={19} /> : <Info size={19} />}
+              <div className="row-main">
+                <strong>{item.title}</strong>
+                <span>{alertDetail(item)}</span>
+              </div>
+              {!!item.amount && <strong className={item.severity === 'high' ? 'money-negative' : ''}>{formatCurrency(item.amount)}</strong>}
+              {item.page !== 'dashboard' && <button className="text-button" onClick={() => setPage(item.page)} type="button">Abrir</button>}
+            </div>
+          ))}
+          {!alerts.length && <EmptyState title="Nenhuma pendencia importante neste mes." />}
         </div>
       </section>
 
@@ -186,6 +214,18 @@ export function DashboardPage({ data, actions, paymentMethods, currentMonth, cur
       )}
     </div>
   );
+}
+
+function alertDetail(item) {
+  const due = item.dueDate ? ` · ${dueLabel(item.daysUntil)}` : '';
+  const target = item.target ? ` · alvo ${formatCurrency(item.target)} · ${item.percent.toFixed(0)}%` : '';
+  return `${item.detail}${due}${target}`;
+}
+
+function dueLabel(daysUntil) {
+  if (daysUntil < 0) return `${Math.abs(daysUntil)} dia(s) atrasado`;
+  if (daysUntil === 0) return 'vence hoje';
+  return `vence em ${daysUntil} dia(s)`;
 }
 
 function ProjectionCard({ label, value, tone }) {

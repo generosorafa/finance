@@ -8,6 +8,7 @@ import {
   categoryBudgetStatuses,
   cardInvoiceSummaries,
   categorySpendingForMonth,
+  financeAlerts,
   fixedItemDueDate,
   fixedItemToTransaction,
   fixedItemsForMonth,
@@ -295,6 +296,29 @@ test('monthlyProjection estimates end of month result from variable spending pac
   assert.equal(projection.projectedExpenses, 2950);
   assert.equal(projection.projectedResult, 50);
   assert.equal(projection.projectedCashEnd, 200);
+});
+
+test('financeAlerts prioritizes overdue fixed items, open invoices and category budgets', () => {
+  const data = {
+    settings: {},
+    wallet: [],
+    categories: [{ id: 'cat_food', name: 'Alimentacao' }],
+    categoryBudgets: [{ id: 'b1', categoryId: 'cat_food', month: '2026-06', amount: 100 }],
+    transactions: [
+      { id: 'food', type: 'despesa', category: 'cat_food', amount: 140, payment: 'PIX', date: '2026-06-02' },
+      { id: 'card', type: 'despesa', category: 'cat_food', amount: 200, payment: 'CC::card_1', date: '2026-06-08' },
+    ],
+    installments: [],
+    fixedItems: [{ id: 'rent', name: 'Aluguel', amount: 1000, dueDay: 5, active: true, startMonth: '2026-01', payment: 'PIX' }],
+    cards: [{ id: 'card_1', name: 'Visa', closeDay: 10, dueDay: 20 }],
+    allocations: [],
+  };
+  const alerts = financeAlerts(data, 5, 2026, '2026-06-10');
+
+  assert.equal(alerts[0].type, 'fixed');
+  assert.equal(alerts[0].severity, 'high');
+  assert.ok(alerts.some((item) => item.type === 'invoice'));
+  assert.ok(alerts.some((item) => item.type === 'budget' && item.severity === 'high'));
 });
 
 test('allocationCashSummary uses special category transactions as cash source', () => {

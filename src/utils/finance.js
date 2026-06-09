@@ -338,6 +338,100 @@ export function monthlyProjection(data, monthIndex, year, referenceDate = new Da
   };
 }
 
+export function financeAlerts(data, monthIndex, year, referenceDate = new Date()) {
+  const reference = normalizeDate(referenceDate);
+  const projection = monthlyProjection(data, monthIndex, year, reference);
+  const cash = smartCashSummary(data, monthIndex, year);
+  const categoryStatuses = categoryBudgetStatuses(data, monthIndex, year);
+  const alerts = [];
+
+  cash.pendingFixed.forEach((item) => {
+    const daysUntil = daysBetween(item.dueDate, reference);
+    alerts.push({
+      id: `fixed_${item.id}`,
+      type: 'fixed',
+      severity: daysUntil < 0 ? 'high' : daysUntil <= 3 ? 'medium' : 'low',
+      title: item.name,
+      detail: `${item.kind === 'assinatura' ? 'Assinatura' : 'Fixo'} pendente`,
+      amount: Number(item.amount || 0),
+      dueDate: item.dueDate,
+      daysUntil,
+      page: 'fixed',
+    });
+  });
+
+  cash.openInvoices.forEach((item) => {
+    const daysUntil = daysBetween(item.dueDate, reference);
+    alerts.push({
+      id: `invoice_${item.invoiceKey}`,
+      type: 'invoice',
+      severity: item.status === 'divergent' || daysUntil < 0 ? 'high' : daysUntil <= 5 ? 'medium' : 'low',
+      title: item.card.name,
+      detail: item.status === 'divergent' ? 'Fatura com pagamento divergente' : 'Fatura aberta',
+      amount: Number(item.total || 0),
+      dueDate: item.dueDate,
+      daysUntil,
+      page: 'cards',
+    });
+  });
+
+  categoryStatuses
+    .filter((item) => ['over', 'warning'].includes(item.status))
+    .forEach((item) => {
+      alerts.push({
+        id: `budget_${item.category.id}`,
+        type: 'budget',
+        severity: item.status === 'over' ? 'high' : 'medium',
+        title: item.category.name,
+        detail: item.status === 'over' ? 'Categoria acima do alvo' : 'Categoria perto do alvo',
+        amount: Number(item.total || 0),
+        target: item.target,
+        percent: item.percent,
+        page: 'categories',
+      });
+    });
+
+  if (projection.projectedCashEnd < 0) {
+    alerts.push({
+      id: 'projection_cash',
+      type: 'projection',
+      severity: 'high',
+      title: 'Caixa projetado negativo',
+      detail: 'O mes tende a fechar com falta de caixa livre',
+      amount: Math.abs(projection.projectedCashEnd),
+      page: 'wallet',
+    });
+  } else if (projection.projectedResult < 0) {
+    alerts.push({
+      id: 'projection_result',
+      type: 'projection',
+      severity: 'medium',
+      title: 'Resultado projetado negativo',
+      detail: 'As despesas projetadas passam as receitas atuais',
+      amount: Math.abs(projection.projectedResult),
+      page: 'dashboard',
+    });
+  }
+
+  if (cash.reservedAvailable > 0) {
+    alerts.push({
+      id: 'reserved_available',
+      type: 'reserved',
+      severity: 'low',
+      title: 'Caixa reservado sem destino',
+      detail: 'Metas ou dividas ainda tem valor para distribuir',
+      amount: cash.reservedAvailable,
+      page: 'goals',
+    });
+  }
+
+  return alerts.sort((a, b) => (
+    severityRank(b.severity) - severityRank(a.severity)
+    || Number(a.daysUntil ?? 999) - Number(b.daysUntil ?? 999)
+    || String(a.title).localeCompare(String(b.title))
+  ));
+}
+
 export function cardInvoiceSummaries(data, monthIndex, year) {
   const invoiceMonth = monthKeyFromParts(year, monthIndex);
   const summary = summarizeMonth(data, monthIndex, year);
@@ -698,7 +792,7 @@ function daysInMonth(year, monthIndex) {
 }
 
 function elapsedDaysInMonth(year, monthIndex, referenceDate) {
-  const reference = typeof referenceDate === 'string' ? new Date(`${referenceDate}T12:00:00`) : referenceDate;
+  const reference = normalizeDate(referenceDate);
   const targetMonth = monthKeyFromParts(year, monthIndex);
   const referenceMonth = monthKey(reference);
   const totalDays = daysInMonth(year, monthIndex);
@@ -706,6 +800,25 @@ function elapsedDaysInMonth(year, monthIndex, referenceDate) {
   if (targetMonth < referenceMonth) return totalDays;
   if (targetMonth > referenceMonth) return 0;
   return Math.min(Math.max(reference.getDate(), 1), totalDays);
+}
+
+function normalizeDate(date) {
+  return typeof date === 'string' ? new Date(`${date}T12:00:00`) : date;
+}
+
+function daysBetween(date, referenceDate) {
+  if (!date) return 999;
+  const target = normalizeDate(date);
+  const reference = normalizeDate(referenceDate);
+  const startTarget = new Date(target.getFullYear(), target.getMonth(), target.getDate(), 12);
+  const startReference = new Date(reference.getFullYear(), reference.getMonth(), reference.getDate(), 12);
+  return Math.round((startTarget - startReference) / 86400000);
+}
+
+function severityRank(severity) {
+  if (severity === 'high') return 3;
+  if (severity === 'medium') return 2;
+  return 1;
 }
 
 function variableExpenseEntriesForProjection(data, monthIndex, year) {
