@@ -275,6 +275,11 @@ button:disabled {
   margin: 5px 0 0;
 }
 
+.dashboard-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
 .form-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -390,6 +395,8 @@ select:focus {
   border: 1px solid var(--line);
   border-radius: 8px;
   background: var(--surface-2);
+  min-width: 0;
+  overflow: hidden;
 }
 
 .row-icon {
@@ -411,6 +418,11 @@ select:focus {
   display: block;
   overflow: hidden;
   text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.list-row > strong {
+  flex: 0 0 auto;
   white-space: nowrap;
 }
 
@@ -514,6 +526,213 @@ select:focus {
 
 .meter span.over-budget {
   background: var(--negative) !important;
+}
+
+.annual-chart {
+  display: grid;
+  gap: 14px;
+}
+
+.annual-bars {
+  display: grid;
+  grid-template-columns: repeat(12, minmax(68px, 1fr));
+  gap: 8px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+}
+
+.month-column {
+  min-width: 68px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface-2);
+  color: var(--text);
+  padding: 10px 6px;
+  display: grid;
+  gap: 6px;
+  justify-items: center;
+}
+
+.month-column:hover,
+.month-column.active {
+  border-color: var(--info);
+}
+
+.month-column.current {
+  box-shadow: inset 0 -3px 0 var(--positive);
+}
+
+.month-column strong {
+  font-size: 0.78rem;
+  text-transform: uppercase;
+}
+
+.month-column small {
+  font-size: 0.68rem;
+  line-height: 1.15;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.bar-pair {
+  height: 132px;
+  display: flex;
+  align-items: end;
+  justify-content: center;
+  gap: 5px;
+}
+
+.year-bar {
+  width: 13px;
+  min-height: 4px;
+  border-radius: 6px 6px 2px 2px;
+  display: block;
+}
+
+.year-bar.income,
+.legend-dot.income {
+  background: var(--positive);
+}
+
+.year-bar.expense,
+.legend-dot.expense {
+  background: var(--negative);
+}
+
+.chart-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 18px;
+  align-items: center;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface-2);
+  color: var(--muted);
+}
+
+.chart-summary strong {
+  color: var(--text);
+}
+
+.chart-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  color: var(--muted);
+  font-size: 0.82rem;
+}
+
+.legend-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  display: inline-block;
+  margin-right: 6px;
+}
+
+.donut-layout {
+  display: grid;
+  grid-template-columns: 180px minmax(0, 1fr);
+  gap: 18px;
+  align-items: center;
+}
+
+.donut-chart {
+  width: 180px;
+  aspect-ratio: 1;
+  position: relative;
+}
+
+.donut-chart svg {
+  width: 100%;
+  height: 100%;
+  transform: rotate(-90deg);
+}
+
+.donut-track,
+.donut-segment {
+  fill: none;
+  stroke-width: 15;
+}
+
+.donut-track {
+  stroke: var(--surface-3);
+}
+
+.donut-segment {
+  transform-origin: center;
+}
+
+.donut-center {
+  position: absolute;
+  inset: 34%;
+  display: grid;
+  place-items: center;
+  text-align: center;
+}
+
+.donut-center span {
+  color: var(--muted);
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  font-weight: 800;
+}
+
+.donut-center strong {
+  font-size: 0.85rem;
+}
+
+.donut-legend {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+
+.donut-legend div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-width: 0;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.donut-legend span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.donut-legend i {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  display: inline-block;
+  margin-right: 6px;
+}
+
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  background: rgba(5, 8, 10, 0.72);
+  display: grid;
+  place-items: start center;
+  padding: 7vh 20px 20px;
+  overflow-y: auto;
+}
+
+.modal-panel {
+  width: min(980px, 100%);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  box-shadow: var(--shadow);
+  padding: 18px;
 }
 
 .card-grid,
@@ -722,6 +941,20 @@ select:focus {
 
   .inline-form {
     flex-direction: column;
+  }
+
+  .dashboard-actions,
+  .dashboard-actions .primary-button {
+    width: 100%;
+  }
+
+  .donut-layout {
+    grid-template-columns: 1fr;
+    justify-items: center;
+  }
+
+  .donut-legend {
+    width: 100%;
   }
 
   .budget-row {
