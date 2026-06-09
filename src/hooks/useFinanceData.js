@@ -21,6 +21,7 @@ const EMPTY_DATA = {
   goals: [],
   debts: [],
   allocations: [],
+  monthlyClosings: [],
   settings: {},
 };
 

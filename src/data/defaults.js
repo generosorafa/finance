@@ -33,6 +33,7 @@ export const COLLECTIONS = [
   'goals',
   'debts',
   'allocations',
+  'monthlyClosings',
 ];
 
 export const SPECIAL_CATEGORIES = {

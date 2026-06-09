@@ -45,8 +45,8 @@ export function isSameMonth(date, monthIndex, year) {
 }
 
 export function summarizeMonth(data, monthIndex, year) {
-  const monthTransactions = data.transactions.filter((item) => isSameMonth(item.date, monthIndex, year));
-  const installments = installmentsForMonth(data.installments, monthIndex, year);
+  const monthTransactions = (data.transactions || []).filter((item) => isSameMonth(item.date, monthIndex, year));
+  const installments = installmentsForMonth(data.installments || [], monthIndex, year);
   const receitas = monthTransactions
     .filter((item) => item.type === 'receita')
     .reduce((sum, item) => sum + Number(item.amount || 0), 0);
@@ -72,7 +72,7 @@ export function monthlyLedgerEntries(data, monthIndex, year) {
     ...item,
     sortDate: item.date || '',
   }));
-  const installmentEntries = summary.installments.map((item) => installmentLedgerEntry(item, data.cards, monthIndex, year));
+  const installmentEntries = summary.installments.map((item) => installmentLedgerEntry(item, data.cards || [], monthIndex, year));
 
   return [...transactionEntries, ...installmentEntries];
 }
@@ -98,7 +98,7 @@ export function installmentLedgerEntry(item, cards, monthIndex, year) {
 
 export function categorySpendingForMonth(data, monthIndex, year) {
   const entries = monthlyLedgerEntries(data, monthIndex, year);
-  return data.categories.map((category) => {
+  return (data.categories || []).map((category) => {
     const total = entries
       .filter((item) => item.type === 'despesa' && item.category === category.id)
       .reduce((sum, item) => sum + Number(item.amount || 0), 0);
@@ -116,18 +116,40 @@ export function categoryBudgetForMonth(categoryBudgets, categoryId, budgetMonth)
     .sort((a, b) => (b.month || '').localeCompare(a.month || ''))[0] || null;
 }
 
+export function categoryBudgetStatuses(data, monthIndex, year) {
+  const budgetMonth = monthKeyFromParts(year, monthIndex);
+  return categorySpendingForMonth(data, monthIndex, year)
+    .map((item) => {
+      const budget = categoryBudgetForMonth(data.categoryBudgets || [], item.category.id, budgetMonth);
+      const target = Number(budget?.amount || 0);
+      const percent = target > 0 ? (item.total / target) * 100 : 0;
+      let status = 'none';
+      if (target > 0 && percent >= 100) status = 'over';
+      else if (target > 0 && percent >= 80) status = 'warning';
+      else if (target > 0) status = 'ok';
+
+      return {
+        ...item,
+        target,
+        percent,
+        status,
+      };
+    })
+    .filter((item) => item.total > 0 || item.target > 0);
+}
+
 export function specialCategoryForType(categories, type) {
   return categories.find((item) => item.special === type) || null;
 }
 
 export function allocationSourceTransactions(data, type) {
-  const category = specialCategoryForType(data.categories, type);
+  const category = specialCategoryForType(data.categories || [], type);
   if (!category) return [];
-  return data.transactions.filter((item) => item.type === 'despesa' && item.category === category.id);
+  return (data.transactions || []).filter((item) => item.type === 'despesa' && item.category === category.id);
 }
 
 export function allocationsForType(data, type) {
-  return data.allocations.filter((item) => item.type === type);
+  return (data.allocations || []).filter((item) => item.type === type);
 }
 
 export function allocationCashSummary(data, type) {
@@ -219,12 +241,173 @@ export function fixedItemToTransaction(item, cards, fixedMonth) {
 }
 
 export function walletBalance(data) {
-  const initial = Number(data.settings.initialBalance || 0);
-  return data.wallet.reduce((sum, item) => {
+  const initial = Number(data.settings?.initialBalance || 0);
+  return (data.wallet || []).reduce((sum, item) => {
     if (item.type === 'entrada') return sum + Number(item.amount || 0);
     if (item.type === 'saida') return sum - Number(item.amount || 0);
     return sum;
   }, initial);
+}
+
+export function cardInvoiceSummaries(data, monthIndex, year) {
+  const invoiceMonth = monthKeyFromParts(year, monthIndex);
+  const summary = summarizeMonth(data, monthIndex, year);
+
+  return (data.cards || []).map((card) => {
+    const direct = transactionsForCardInvoice(data.transactions || [], card, invoiceMonth)
+      .reduce((sum, item) => sum + Number(item.amount || 0), 0);
+    const installments = summary.installments
+      .filter((item) => item.cardId === card.id)
+      .reduce((sum, item) => sum + Number(item.parcelValue || 0), 0);
+    const total = direct + installments;
+    const invoiceKey = getInvoiceKey(card.id, invoiceMonth);
+    const paidEntry = (data.wallet || []).find((item) => item.source === 'invoice' && item.invoiceKey === invoiceKey);
+    const paymentMatchesInvoice = paidEntry && Math.abs(Number(paidEntry.amount || 0) - total) < 0.01;
+    let status = 'empty';
+    if (total > 0 && paidEntry && paymentMatchesInvoice) status = 'paid';
+    else if (total > 0 && paidEntry) status = 'divergent';
+    else if (total > 0) status = 'open';
+
+    return {
+      card,
+      direct,
+      installments,
+      total,
+      dueDate: getInvoiceDueDate(card, invoiceMonth),
+      invoiceKey,
+      paidEntry,
+      paymentMatchesInvoice,
+      status,
+    };
+  });
+}
+
+export function monthlyClosingId(closingMonth) {
+  return `monthly_closing_${closingMonth}`;
+}
+
+export function monthlyClosingInsights(data, monthIndex, year) {
+  const closingMonth = monthKeyFromParts(year, monthIndex);
+  const summary = summarizeMonth(data, monthIndex, year);
+  const fixedRows = fixedItemsForMonth(data.fixedItems || [], monthIndex, year)
+    .map((item) => ({
+      ...item,
+      launchedTransaction: transactionForFixedItemMonth(data.transactions || [], item.id, closingMonth),
+    }));
+  const pendingFixed = fixedRows
+    .filter((item) => !item.launchedTransaction)
+    .sort((a, b) => (a.dueDate || '').localeCompare(b.dueDate || ''));
+  const cardInvoices = cardInvoiceSummaries(data, monthIndex, year);
+  const openInvoices = cardInvoices
+    .filter((item) => item.total > 0 && item.status !== 'paid')
+    .sort((a, b) => (a.dueDate || '').localeCompare(b.dueDate || ''));
+  const categoryStatuses = categoryBudgetStatuses(data, monthIndex, year)
+    .sort((a, b) => b.total - a.total);
+  const overBudget = categoryStatuses.filter((item) => item.status === 'over');
+  const warningBudget = categoryStatuses.filter((item) => item.status === 'warning');
+  const goalsCash = allocationCashSummary(data, 'goals');
+  const debtsCash = allocationCashSummary(data, 'debts');
+  const goalsAllocated = allocationTotalForMonth(data, 'goals', monthIndex, year);
+  const debtsAllocated = allocationTotalForMonth(data, 'debts', monthIndex, year);
+  const reservedAvailable = goalsCash.available + debtsCash.available;
+
+  const checklist = [
+    {
+      id: 'fixed',
+      label: 'Fixos e assinaturas lancados',
+      done: pendingFixed.length === 0,
+      detail: pendingFixed.length ? `${pendingFixed.length} pendente(s)` : 'Tudo lancado',
+    },
+    {
+      id: 'cards',
+      label: 'Faturas conferidas',
+      done: openInvoices.length === 0,
+      detail: openInvoices.length ? `${openInvoices.length} aberta(s) ou divergente(s)` : 'Faturas em dia',
+    },
+    {
+      id: 'budgets',
+      label: 'Alvos por categoria revisados',
+      done: overBudget.length === 0,
+      detail: overBudget.length ? `${overBudget.length} acima do alvo` : 'Nenhum alvo estourado',
+    },
+    {
+      id: 'reserved',
+      label: 'Caixa de metas e dividas distribuido',
+      done: reservedAvailable === 0,
+      detail: reservedAvailable > 0 ? `${formatCurrency(reservedAvailable)} aguardando destino` : 'Sem caixa pendente',
+    },
+    {
+      id: 'balance',
+      label: 'Saldo do mes saudavel',
+      done: summary.saldo >= 0,
+      detail: summary.saldo >= 0 ? 'Saldo positivo' : 'Mes fechando negativo',
+    },
+  ];
+
+  return {
+    month: closingMonth,
+    label: monthLabel(year, monthIndex),
+    summary,
+    wallet: walletBalance(data),
+    fixedRows,
+    pendingFixed,
+    cardInvoices,
+    openInvoices,
+    categoryStatuses,
+    overBudget,
+    warningBudget,
+    goalsCash,
+    debtsCash,
+    goalsAllocated,
+    debtsAllocated,
+    checklist,
+    readyToClose: checklist.every((item) => item.done),
+  };
+}
+
+export function buildMonthlyClosingSnapshot(data, monthIndex, year, note = '', now = Date.now()) {
+  const insights = monthlyClosingInsights(data, monthIndex, year);
+  const totalExpenses = insights.summary.despesas + insights.summary.parcelas;
+
+  return {
+    id: monthlyClosingId(insights.month),
+    month: insights.month,
+    receitas: insights.summary.receitas,
+    despesas: totalExpenses,
+    parcelas: insights.summary.parcelas,
+    saldo: insights.summary.saldo,
+    carteira: insights.wallet,
+    fixedPending: insights.pendingFixed.length,
+    openInvoices: insights.openInvoices.length,
+    overBudget: insights.overBudget.length,
+    warningBudget: insights.warningBudget.length,
+    goalsCashAvailable: insights.goalsCash.available,
+    debtsCashAvailable: insights.debtsCash.available,
+    goalsAllocated: insights.goalsAllocated,
+    debtsAllocated: insights.debtsAllocated,
+    checklist: insights.checklist,
+    categoryAlerts: [...insights.overBudget, ...insights.warningBudget].map((item) => ({
+      categoryId: item.category.id,
+      name: item.category.name,
+      total: item.total,
+      target: item.target,
+      percent: item.percent,
+      status: item.status,
+    })),
+    cardInvoices: insights.cardInvoices
+      .filter((item) => item.total > 0)
+      .map((item) => ({
+        cardId: item.card.id,
+        name: item.card.name,
+        total: item.total,
+        dueDate: item.dueDate,
+        status: item.status,
+      })),
+    note: note.trim(),
+    status: insights.readyToClose ? 'ok' : 'attention',
+    closedAt: now,
+    updatedAt: now,
+  };
 }
 
 export function getCategory(categories, id) {
@@ -423,4 +606,10 @@ function formatCsvCurrency(value) {
 
 function daysInMonth(year, monthIndex) {
   return new Date(year, monthIndex + 1, 0).getDate();
+}
+
+function allocationTotalForMonth(data, type, monthIndex, year) {
+  return allocationsForType(data, type)
+    .filter((item) => isSameMonth(item.date, monthIndex, year))
+    .reduce((sum, item) => sum + Number(item.amount || 0), 0);
 }

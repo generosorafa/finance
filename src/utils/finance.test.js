@@ -3,7 +3,10 @@ import test from 'node:test';
 import {
   allocatedToTarget,
   allocationCashSummary,
+  buildMonthlyClosingSnapshot,
   categoryBudgetForMonth,
+  categoryBudgetStatuses,
+  cardInvoiceSummaries,
   categorySpendingForMonth,
   fixedItemDueDate,
   fixedItemToTransaction,
@@ -11,6 +14,7 @@ import {
   getCardInvoiceMonth,
   installmentsForMonth,
   monthlyLedgerEntries,
+  monthlyClosingInsights,
   targetAllocations,
   transactionForFixedItemMonth,
   transactionsForCardInvoice,
@@ -135,6 +139,86 @@ test('categoryBudgetForMonth returns latest budget at or before month', () => {
 
   assert.equal(categoryBudgetForMonth(budgets, 'cat_alim', '2026-06').amount, 950);
   assert.equal(categoryBudgetForMonth(budgets, 'cat_alim', '2025-12'), null);
+});
+
+test('categoryBudgetStatuses marks warning and over budget categories', () => {
+  const data = {
+    categories: [
+      { id: 'cat_food', name: 'Alimentacao' },
+      { id: 'cat_fun', name: 'Lazer' },
+    ],
+    categoryBudgets: [
+      { id: 'b1', categoryId: 'cat_food', month: '2026-06', amount: 100 },
+      { id: 'b2', categoryId: 'cat_fun', month: '2026-06', amount: 200 },
+    ],
+    transactions: [
+      { id: 'tx1', type: 'despesa', category: 'cat_food', amount: 120, date: '2026-06-01' },
+      { id: 'tx2', type: 'despesa', category: 'cat_fun', amount: 170, date: '2026-06-02' },
+    ],
+    installments: [],
+    cards: [],
+  };
+  const statuses = categoryBudgetStatuses(data, 5, 2026);
+
+  assert.equal(statuses.find((item) => item.category.id === 'cat_food').status, 'over');
+  assert.equal(statuses.find((item) => item.category.id === 'cat_fun').status, 'warning');
+});
+
+test('cardInvoiceSummaries combines card purchases and installments', () => {
+  const data = {
+    transactions: [{ id: 'tx1', type: 'despesa', amount: 80, payment: 'CC::card_1', date: '2026-06-05' }],
+    installments: [{ id: 'i1', firstMonth: '2026-06', parcels: 2, parcelValue: 50, cardId: 'card_1' }],
+    cards: [{ id: 'card_1', name: 'Visa', closeDay: 10, dueDay: 20 }],
+    wallet: [],
+  };
+  const [invoice] = cardInvoiceSummaries(data, 5, 2026);
+
+  assert.equal(invoice.direct, 80);
+  assert.equal(invoice.installments, 50);
+  assert.equal(invoice.total, 130);
+  assert.equal(invoice.status, 'open');
+});
+
+test('monthlyClosingInsights surfaces pending work before closing', () => {
+  const data = {
+    settings: {},
+    wallet: [],
+    categories: [{ id: 'cat_food', name: 'Alimentacao' }],
+    categoryBudgets: [{ id: 'b1', categoryId: 'cat_food', month: '2026-06', amount: 100 }],
+    transactions: [
+      { id: 'tx1', type: 'despesa', category: 'cat_food', amount: 120, payment: 'PIX', date: '2026-06-01' },
+    ],
+    installments: [],
+    fixedItems: [{ id: 'rent', name: 'Aluguel', amount: 1000, dueDay: 5, active: true, startMonth: '2026-01' }],
+    cards: [],
+    allocations: [],
+  };
+  const insights = monthlyClosingInsights(data, 5, 2026);
+
+  assert.equal(insights.pendingFixed.length, 1);
+  assert.equal(insights.overBudget.length, 1);
+  assert.equal(insights.readyToClose, false);
+});
+
+test('buildMonthlyClosingSnapshot stores compact monthly totals', () => {
+  const data = {
+    settings: { initialBalance: 100 },
+    wallet: [{ id: 'w1', type: 'entrada', amount: 50 }],
+    categories: [],
+    categoryBudgets: [],
+    transactions: [{ id: 'tx1', type: 'receita', category: 'cat_salary', amount: 1000, date: '2026-06-01' }],
+    installments: [],
+    fixedItems: [],
+    cards: [],
+    allocations: [],
+  };
+  const snapshot = buildMonthlyClosingSnapshot(data, 5, 2026, 'ok', 123);
+
+  assert.equal(snapshot.id, 'monthly_closing_2026-06');
+  assert.equal(snapshot.receitas, 1000);
+  assert.equal(snapshot.carteira, 150);
+  assert.equal(snapshot.note, 'ok');
+  assert.equal(snapshot.closedAt, 123);
 });
 
 test('allocationCashSummary uses special category transactions as cash source', () => {

@@ -115,6 +115,17 @@ service cloud.firestore {
         ]);
       }
 
+      match /monthlyClosings/{docId} {
+        allow read, delete: if isOwner(userId);
+        allow create, update: if isOwner(userId) && validOwnedDoc(docId, [
+          'id', 'month', 'receitas', 'despesas', 'parcelas', 'saldo', 'carteira',
+          'fixedPending', 'openInvoices', 'overBudget', 'warningBudget',
+          'goalsCashAvailable', 'debtsCashAvailable', 'goalsAllocated',
+          'debtsAllocated', 'checklist', 'categoryAlerts', 'cardInvoices',
+          'note', 'status', 'closedAt', 'updatedAt'
+        ]);
+      }
+
       match /config/{configId} {
         allow read: if isOwner(userId) && configId == 'settings';
         allow create, update: if isOwner(userId) && configId == 'settings' && validSettings();
