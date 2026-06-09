@@ -467,6 +467,30 @@ select:focus {
   gap: 12px;
 }
 
+.budget-list {
+  display: grid;
+  gap: 10px;
+}
+
+.budget-row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) 130px auto;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface-2);
+}
+
+.budget-main {
+  min-width: 0;
+}
+
+.budget-input {
+  min-height: 38px;
+}
+
 .bar-label {
   display: flex;
   justify-content: space-between;
@@ -486,6 +510,10 @@ select:focus {
 .meter span {
   display: block;
   height: 100%;
+}
+
+.meter span.over-budget {
+  background: var(--negative) !important;
 }
 
 .card-grid,
@@ -694,5 +722,15 @@ select:focus {
 
   .inline-form {
     flex-direction: column;
+  }
+
+  .budget-row {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .budget-input,
+  .budget-row .icon-button {
+    grid-column: 1 / -1;
+    width: 100%;
   }
 }

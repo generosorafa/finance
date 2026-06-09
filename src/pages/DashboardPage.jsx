@@ -2,8 +2,10 @@ import { CategoryBars, EmptyState, StatCard } from '../components/ui.jsx';
 import { TransactionForm } from '../components/transactions/TransactionForm.jsx';
 import { TransactionList } from '../components/transactions/TransactionList.jsx';
 import {
+  categorySpendingForMonth,
   fixedItemsForMonth,
   formatCurrency,
+  monthlyLedgerEntries,
   summarizeMonth,
   transactionForFixedItemMonth,
   walletBalance,
@@ -12,7 +14,8 @@ import {
 export function DashboardPage({ data, actions, paymentMethods, currentMonth, currentYear, setPage }) {
   const summary = summarizeMonth(data, currentMonth, currentYear);
   const balance = walletBalance(data);
-  const recent = [...summary.monthTransactions].sort((a, b) => (b.date || '').localeCompare(a.date || '')).slice(0, 6);
+  const ledgerEntries = monthlyLedgerEntries(data, currentMonth, currentYear);
+  const recent = [...ledgerEntries].sort((a, b) => (b.sortDate || '').localeCompare(a.sortDate || '')).slice(0, 6);
   const fixedMonth = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}`;
   const fixedRows = fixedItemsForMonth(data.fixedItems, currentMonth, currentYear)
     .map((item) => ({
@@ -22,12 +25,10 @@ export function DashboardPage({ data, actions, paymentMethods, currentMonth, cur
   const pendingFixed = fixedRows
     .filter((item) => !item.launchedTransaction)
     .sort((a, b) => (a.dueDate || '').localeCompare(b.dueDate || ''));
-  const categoryTotals = data.categories.map((category) => ({
-    category,
-    total: summary.monthTransactions
-      .filter((item) => item.type === 'despesa' && item.category === category.id)
-      .reduce((sum, item) => sum + Number(item.amount || 0), 0),
-  })).filter((item) => item.total > 0).sort((a, b) => b.total - a.total).slice(0, 5);
+  const categoryTotals = categorySpendingForMonth(data, currentMonth, currentYear)
+    .filter((item) => item.total > 0)
+    .sort((a, b) => b.total - a.total)
+    .slice(0, 5);
 
   return (
     <div className="content-grid">
@@ -52,7 +53,7 @@ export function DashboardPage({ data, actions, paymentMethods, currentMonth, cur
         <div className="panel-header">
           <div>
             <h2>Recentes</h2>
-            <p>{summary.transactionCount} lancamentos no mes.</p>
+            <p>{ledgerEntries.length} movimentos no mes, incluindo parcelas.</p>
           </div>
           <button className="text-button" onClick={() => setPage('transactions')} type="button">Ver tudo</button>
         </div>
@@ -88,7 +89,7 @@ export function DashboardPage({ data, actions, paymentMethods, currentMonth, cur
             <p>Top categorias do mes atual.</p>
           </div>
         </div>
-        <CategoryBars items={categoryTotals} total={summary.despesas || 1} />
+        <CategoryBars items={categoryTotals} total={(summary.despesas + summary.parcelas) || 1} />
       </section>
     </div>
   );

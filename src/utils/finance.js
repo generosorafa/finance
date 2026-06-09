@@ -66,6 +66,56 @@ export function summarizeMonth(data, monthIndex, year) {
   };
 }
 
+export function monthlyLedgerEntries(data, monthIndex, year) {
+  const summary = summarizeMonth(data, monthIndex, year);
+  const transactionEntries = summary.monthTransactions.map((item) => ({
+    ...item,
+    sortDate: item.date || '',
+  }));
+  const installmentEntries = summary.installments.map((item) => installmentLedgerEntry(item, data.cards, monthIndex, year));
+
+  return [...transactionEntries, ...installmentEntries];
+}
+
+export function installmentLedgerEntry(item, cards, monthIndex, year) {
+  const card = cards.find((entry) => entry.id === item.cardId);
+  return {
+    id: `ledger_installment_${item.id}_${monthKeyFromParts(year, monthIndex)}`,
+    type: 'despesa',
+    desc: item.desc,
+    amount: Number(item.parcelValue || 0),
+    date: item.purchaseDate || '',
+    category: item.categoryId,
+    payment: item.cardId ? `CC::${item.cardId}` : '',
+    nature: 'parcelamento',
+    source: 'installment',
+    installmentId: item.id,
+    installmentLabel: `Parcela ${item.paidCount}/${item.parcels}`,
+    cardName: card?.name || '',
+    sortDate: `${monthKeyFromParts(year, monthIndex)}-01`,
+  };
+}
+
+export function categorySpendingForMonth(data, monthIndex, year) {
+  const entries = monthlyLedgerEntries(data, monthIndex, year);
+  return data.categories.map((category) => {
+    const total = entries
+      .filter((item) => item.type === 'despesa' && item.category === category.id)
+      .reduce((sum, item) => sum + Number(item.amount || 0), 0);
+    return { category, total };
+  });
+}
+
+export function categoryBudgetId(categoryId, budgetMonth) {
+  return `cat_budget_${categoryId}_${budgetMonth}`;
+}
+
+export function categoryBudgetForMonth(categoryBudgets, categoryId, budgetMonth) {
+  return [...categoryBudgets]
+    .filter((item) => item.categoryId === categoryId && item.month <= budgetMonth)
+    .sort((a, b) => (b.month || '').localeCompare(a.month || ''))[0] || null;
+}
+
 export function installmentsForMonth(installments, monthIndex, year) {
   const target = year * 12 + monthIndex;
   return installments
@@ -301,6 +351,23 @@ export function exportFinanceCsv(data, monthIndex, year) {
       formatCsvCurrency(item.amount),
     ]);
   });
+
+  rows.push([]);
+  rows.push(['ALVOS POR CATEGORIA']);
+  rows.push(['Categoria', 'Gasto', 'Alvo', 'Percentual']);
+  categorySpendingForMonth(data, monthIndex, year)
+    .filter((item) => item.total > 0 || categoryBudgetForMonth(data.categoryBudgets || [], item.category.id, fixedMonth))
+    .forEach((item) => {
+      const budget = categoryBudgetForMonth(data.categoryBudgets || [], item.category.id, fixedMonth);
+      const amount = Number(budget?.amount || 0);
+      const percent = amount > 0 ? (item.total / amount) * 100 : 0;
+      rows.push([
+        item.category.name,
+        formatCsvCurrency(item.total),
+        amount ? formatCsvCurrency(amount) : '',
+        amount ? `${percent.toFixed(0)}%` : '',
+      ]);
+    });
 
   return rows.map((row) => row.map(escapeCsvCell).join(';')).join('\r\n');
 }

@@ -57,6 +57,13 @@ service cloud.firestore {
         ]);
       }
 
+      match /categoryBudgets/{docId} {
+        allow read, delete: if isOwner(userId);
+        allow create, update: if isOwner(userId) && validOwnedDoc(docId, [
+          'id', 'categoryId', 'month', 'amount', 'createdAt', 'updatedAt'
+        ]);
+      }
+
       match /cards/{docId} {
         allow read, delete: if isOwner(userId);
         allow create, update: if isOwner(userId) && validOwnedDoc(docId, [

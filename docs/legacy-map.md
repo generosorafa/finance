@@ -27,6 +27,7 @@ O arquivo original enviado pelo usuario era um `index.html` unico com CSS, HTML,
 transactions
 installments
 fixedItems
+categoryBudgets
 cards
 categories
 wallet

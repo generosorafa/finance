@@ -25,6 +25,7 @@ export const COLLECTIONS = [
   'transactions',
   'installments',
   'fixedItems',
+  'categoryBudgets',
   'cards',
   'categories',
   'wallet',

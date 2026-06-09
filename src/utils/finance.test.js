@@ -1,11 +1,14 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
+  categoryBudgetForMonth,
+  categorySpendingForMonth,
   fixedItemDueDate,
   fixedItemToTransaction,
   fixedItemsForMonth,
   getCardInvoiceMonth,
   installmentsForMonth,
+  monthlyLedgerEntries,
   transactionForFixedItemMonth,
   transactionsForCardInvoice,
   walletEntryForTransaction,
@@ -93,4 +96,40 @@ test('transactionForFixedItemMonth finds launched fixed item', () => {
 
   assert.equal(transactionForFixedItemMonth(transactions, 'rent', '2026-06').id, 'a');
   assert.equal(transactionForFixedItemMonth(transactions, 'rent', '2026-05'), null);
+});
+
+test('monthlyLedgerEntries includes installment rows for current month', () => {
+  const data = {
+    transactions: [],
+    installments: [{ id: 'i1', desc: 'Notebook', firstMonth: '2026-06', parcels: 2, parcelValue: 500, categoryId: 'cat_edu', cardId: 'card_1', purchaseDate: '2026-05-20' }],
+    cards: [{ id: 'card_1', name: 'Visa' }],
+  };
+  const entries = monthlyLedgerEntries(data, 5, 2026);
+
+  assert.equal(entries.length, 1);
+  assert.equal(entries[0].source, 'installment');
+  assert.equal(entries[0].installmentLabel, 'Parcela 1/2');
+  assert.equal(entries[0].category, 'cat_edu');
+});
+
+test('categorySpendingForMonth sums transactions and installments', () => {
+  const data = {
+    categories: [{ id: 'cat_edu', name: 'Educacao' }],
+    transactions: [{ id: 'tx1', type: 'despesa', amount: 100, category: 'cat_edu', date: '2026-06-03' }],
+    installments: [{ id: 'i1', firstMonth: '2026-06', parcels: 2, parcelValue: 500, categoryId: 'cat_edu' }],
+    cards: [],
+  };
+
+  assert.equal(categorySpendingForMonth(data, 5, 2026)[0].total, 600);
+});
+
+test('categoryBudgetForMonth returns latest budget at or before month', () => {
+  const budgets = [
+    { id: 'a', categoryId: 'cat_alim', month: '2026-01', amount: 800 },
+    { id: 'b', categoryId: 'cat_alim', month: '2026-05', amount: 950 },
+    { id: 'c', categoryId: 'cat_alim', month: '2026-08', amount: 1000 },
+  ];
+
+  assert.equal(categoryBudgetForMonth(budgets, 'cat_alim', '2026-06').amount, 950);
+  assert.equal(categoryBudgetForMonth(budgets, 'cat_alim', '2025-12'), null);
 });

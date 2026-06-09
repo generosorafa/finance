@@ -2,15 +2,14 @@ import { useState } from 'react';
 import { SegmentedControl } from '../components/ui.jsx';
 import { TransactionForm } from '../components/transactions/TransactionForm.jsx';
 import { TransactionList } from '../components/transactions/TransactionList.jsx';
-import { isSameMonth } from '../utils/finance.js';
+import { monthlyLedgerEntries } from '../utils/finance.js';
 
 export function TransactionsPage({ data, actions, paymentMethods, currentMonth, currentYear }) {
   const [filter, setFilter] = useState('all');
   const [editingTransaction, setEditingTransaction] = useState(null);
-  const monthly = data.transactions
-    .filter((item) => isSameMonth(item.date, currentMonth, currentYear))
+  const monthly = monthlyLedgerEntries(data, currentMonth, currentYear)
     .filter((item) => filter === 'all' || item.type === filter)
-    .sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+    .sort((a, b) => (b.sortDate || '').localeCompare(a.sortDate || ''));
 
   return (
     <div className="content-grid">

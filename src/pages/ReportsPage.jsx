@@ -2,6 +2,8 @@ import { Download } from 'lucide-react';
 import { StatCard } from '../components/ui.jsx';
 import { downloadText } from '../utils/download.js';
 import {
+  categoryBudgetForMonth,
+  categorySpendingForMonth,
   exportFinanceCsv,
   fixedItemsForMonth,
   formatCurrency,
@@ -26,6 +28,15 @@ export function ReportsPage({ data, currentMonth, currentYear }) {
     const fixedRows = fixedItemsForMonth(data.fixedItems || [], currentMonth, currentYear)
       .map((item) => `<li>${item.dueDate} - ${item.name} - ${formatCurrency(item.amount)} (${transactionForFixedItemMonth(data.transactions, item.id, invoiceMonth) ? 'lancado' : 'pendente'})</li>`)
       .join('');
+    const budgetRows = categorySpendingForMonth(data, currentMonth, currentYear)
+      .filter((item) => item.total > 0 || categoryBudgetForMonth(data.categoryBudgets || [], item.category.id, invoiceMonth))
+      .map((item) => {
+        const budget = categoryBudgetForMonth(data.categoryBudgets || [], item.category.id, invoiceMonth);
+        const amount = Number(budget?.amount || 0);
+        const percent = amount > 0 ? ` - ${(item.total / amount * 100).toFixed(0)}%` : '';
+        return `<li>${item.category.name}: ${formatCurrency(item.total)} de ${amount ? formatCurrency(amount) : 'sem alvo'}${percent}</li>`;
+      })
+      .join('');
     const cardRows = data.cards.map((card) => {
       const purchases = transactionsForCardInvoice(data.transactions, card, invoiceMonth)
         .reduce((sum, item) => sum + Number(item.amount || 0), 0);
@@ -35,7 +46,7 @@ export function ReportsPage({ data, currentMonth, currentYear }) {
       const paid = data.wallet.some((item) => item.source === 'invoice' && item.invoiceKey === getInvoiceKey(card.id, invoiceMonth));
       return `<li>${card.name}: ${formatCurrency(purchases + installments)} (${paid ? 'paga' : 'aberta'})</li>`;
     }).join('');
-    const html = `<!doctype html><html lang="pt-BR"><meta charset="utf-8"><title>Relatorio Finance</title><body style="font-family:Arial,sans-serif;padding:32px"><h1>Relatorio ${monthLabel(currentYear, currentMonth)}</h1><p>Receitas: ${formatCurrency(summary.receitas)}</p><p>Despesas: ${formatCurrency(summary.despesas + summary.parcelas)}</p><p>Saldo: ${formatCurrency(summary.saldo)}</p><h2>Transacoes</h2><ul>${summary.monthTransactions.map((item) => `<li>${item.date} - ${item.desc} - ${formatCurrency(item.amount)}</li>`).join('')}</ul><h2>Fixos e assinaturas</h2><ul>${fixedRows}</ul><h2>Parcelamentos</h2><ul>${summary.installments.map((item) => `<li>${item.desc} - parcela ${item.paidCount}/${item.parcels} - ${formatCurrency(item.parcelValue)}</li>`).join('')}</ul><h2>Cartoes</h2><ul>${cardRows}</ul></body></html>`;
+    const html = `<!doctype html><html lang="pt-BR"><meta charset="utf-8"><title>Relatorio Finance</title><body style="font-family:Arial,sans-serif;padding:32px"><h1>Relatorio ${monthLabel(currentYear, currentMonth)}</h1><p>Receitas: ${formatCurrency(summary.receitas)}</p><p>Despesas: ${formatCurrency(summary.despesas + summary.parcelas)}</p><p>Saldo: ${formatCurrency(summary.saldo)}</p><h2>Transacoes</h2><ul>${summary.monthTransactions.map((item) => `<li>${item.date} - ${item.desc} - ${formatCurrency(item.amount)}</li>`).join('')}</ul><h2>Alvos por categoria</h2><ul>${budgetRows}</ul><h2>Fixos e assinaturas</h2><ul>${fixedRows}</ul><h2>Parcelamentos</h2><ul>${summary.installments.map((item) => `<li>${item.desc} - parcela ${item.paidCount}/${item.parcels} - ${formatCurrency(item.parcelValue)}</li>`).join('')}</ul><h2>Cartoes</h2><ul>${cardRows}</ul></body></html>`;
     downloadText(`relatorio-finance-${currentYear}-${String(currentMonth + 1).padStart(2, '0')}.html`, html, 'text/html;charset=utf-8');
   }
 

@@ -13,6 +13,7 @@ const EMPTY_DATA = {
   transactions: [],
   installments: [],
   fixedItems: [],
+  categoryBudgets: [],
   cards: [],
   categories: [],
   wallet: [],
