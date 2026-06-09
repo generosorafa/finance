@@ -421,10 +421,27 @@ select:focus {
   padding: 4px 9px;
   font-size: 0.75rem;
   font-weight: 800;
+  white-space: nowrap;
+}
+
+.pill.positive {
+  background: rgba(61, 210, 141, 0.12);
+  color: var(--positive);
+}
+
+.pill.warning {
+  background: rgba(225, 196, 92, 0.13);
+  color: var(--accent);
+}
+
+.pill.muted {
+  background: rgba(155, 167, 180, 0.12);
+  color: var(--muted);
 }
 
 .segmented {
   display: flex;
+  flex-wrap: wrap;
   background: var(--surface-2);
   border: 1px solid var(--line);
   border-radius: 8px;

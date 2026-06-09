@@ -3,6 +3,7 @@ import { Check, Pencil, Plus, RotateCcw, Trash2, X } from 'lucide-react';
 import { EmptyState, Field } from '../components/ui.jsx';
 import {
   formatCurrency,
+  getCardIdFromPayment,
   getInvoiceDueDate,
   getInvoiceKey,
   invoicePaymentEntry,
@@ -76,9 +77,10 @@ export function CardsPage({ data, actions, currentMonth, currentYear }) {
   async function removeCard(item) {
     const hasInstallments = data.installments.some((entry) => entry.cardId === item.id);
     const hasTransactions = data.transactions.some((entry) => entry.linkedCardId === item.id || entry.payment === `CC::${item.id}`);
+    const hasFixedItems = data.fixedItems.some((entry) => entry.linkedCardId === item.id || getCardIdFromPayment(entry.payment) === item.id);
     const hasWalletEntries = data.wallet.some((entry) => entry.cardId === item.id);
-    if (hasInstallments || hasTransactions || hasWalletEntries) {
-      window.alert('Este cartao tem transacoes, parcelamentos ou pagamentos vinculados. Edite/remova esses itens antes de excluir.');
+    if (hasInstallments || hasTransactions || hasFixedItems || hasWalletEntries) {
+      window.alert('Este cartao tem transacoes, parcelamentos, fixos/assinaturas ou pagamentos vinculados. Edite/remova esses itens antes de excluir.');
       return;
     }
     if (!window.confirm(`Excluir o cartao "${item.name}"?`)) return;

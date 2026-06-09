@@ -2,7 +2,7 @@
 
 Aplicacao financeira pessoal criada a partir do prototipo legado em HTML unico. A nova base usa React, Vite e Firebase modular para facilitar a evolucao de layout, dados e automacoes.
 
-Decisao de produto atual: nao usar recorrencia generica. O app deve evoluir com conceitos mais claros para gastos fixos, assinaturas e parcelamentos.
+Decisao de produto atual: nao usar recorrencia generica. O app usa conceitos mais claros: fixos e assinaturas ficam em cadastro mensal controlado, enquanto parcelamentos ficam vinculados aos cartoes.
 
 ## Como rodar
 

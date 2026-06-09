@@ -33,6 +33,11 @@ export function monthLabelFromKey(key) {
   return monthLabel(year, month - 1);
 }
 
+export function monthPartsFromKey(key) {
+  const [year, month] = key.split('-').map(Number);
+  return { year, monthIndex: month - 1 };
+}
+
 export function isSameMonth(date, monthIndex, year) {
   if (!date) return false;
   const value = new Date(`${date}T12:00:00`);
@@ -73,6 +78,55 @@ export function installmentsForMonth(installments, monthIndex, year) {
       return { ...item, paidCount };
     })
     .filter(Boolean);
+}
+
+export function fixedItemsForMonth(fixedItems, monthIndex, year) {
+  const target = monthKeyFromParts(year, monthIndex);
+  return fixedItems
+    .filter((item) => item.active !== false)
+    .filter((item) => !item.startMonth || item.startMonth <= target)
+    .filter((item) => !item.endMonth || item.endMonth >= target)
+    .map((item) => ({
+      ...item,
+      fixedMonth: target,
+      dueDate: fixedItemDueDate(item, monthIndex, year),
+    }));
+}
+
+export function fixedItemDueDate(item, monthIndex, year) {
+  const day = Math.min(Math.max(Number(item.dueDay || 1), 1), daysInMonth(year, monthIndex));
+  return `${year}-${String(monthIndex + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+}
+
+export function transactionForFixedItemMonth(transactions, itemId, fixedMonth) {
+  return transactions.find((item) => item.fixedItemId === itemId && item.fixedMonth === fixedMonth) || null;
+}
+
+export function fixedItemToTransaction(item, cards, fixedMonth) {
+  const { year, monthIndex } = monthPartsFromKey(fixedMonth);
+  const linkedCardId = getCardIdFromPayment(item.payment);
+  const card = cards.find((entry) => entry.id === linkedCardId);
+  const date = fixedItemDueDate(item, monthIndex, year);
+  const transaction = {
+    id: `tx_fixed_${item.id}_${fixedMonth}`,
+    type: 'despesa',
+    desc: item.name,
+    amount: Number(item.amount || 0),
+    date,
+    category: item.category,
+    payment: item.payment,
+    necessity: 'necessario',
+    nature: item.kind === 'assinatura' ? 'assinatura' : 'fixo',
+    linkedCardId,
+    invoiceMonth: linkedCardId ? getCardInvoiceMonth(card, date) : '',
+    note: item.note || '',
+    source: 'fixed-item',
+    fixedItemId: item.id,
+    fixedMonth,
+    createdAt: Date.now(),
+  };
+
+  return transaction;
 }
 
 export function walletBalance(data) {
@@ -194,6 +248,8 @@ export function exportTransactionsCsv(transactions, categories) {
 
 export function exportFinanceCsv(data, monthIndex, year) {
   const summary = summarizeMonth(data, monthIndex, year);
+  const fixedMonth = monthKeyFromParts(year, monthIndex);
+  const fixedRows = fixedItemsForMonth(data.fixedItems || [], monthIndex, year);
   const rows = [];
 
   rows.push(['RESUMO']);
@@ -229,6 +285,23 @@ export function exportFinanceCsv(data, monthIndex, year) {
     ]);
   });
 
+  rows.push([]);
+  rows.push(['FIXOS E ASSINATURAS']);
+  rows.push(['Vencimento', 'Nome', 'Tipo', 'Categoria', 'Pagamento', 'Status', 'Valor']);
+  fixedRows.forEach((item) => {
+    const category = getCategory(data.categories, item.category);
+    const launched = transactionForFixedItemMonth(data.transactions, item.id, fixedMonth);
+    rows.push([
+      item.dueDate || '',
+      item.name || '',
+      item.kind === 'assinatura' ? 'Assinatura' : 'Fixo',
+      category.name,
+      item.payment || '-',
+      launched ? 'Lancado' : 'Pendente',
+      formatCsvCurrency(item.amount),
+    ]);
+  });
+
   return rows.map((row) => row.map(escapeCsvCell).join(';')).join('\r\n');
 }
 
@@ -240,4 +313,8 @@ function escapeCsvCell(value) {
 
 function formatCsvCurrency(value) {
   return Number(value || 0).toFixed(2).replace('.', ',');
+}
+
+function daysInMonth(year, monthIndex) {
+  return new Date(year, monthIndex + 1, 0).getDate();
 }

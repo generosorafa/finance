@@ -1,12 +1,27 @@
-import { CategoryBars, StatCard } from '../components/ui.jsx';
+import { CategoryBars, EmptyState, StatCard } from '../components/ui.jsx';
 import { TransactionForm } from '../components/transactions/TransactionForm.jsx';
 import { TransactionList } from '../components/transactions/TransactionList.jsx';
-import { formatCurrency, summarizeMonth, walletBalance } from '../utils/finance.js';
+import {
+  fixedItemsForMonth,
+  formatCurrency,
+  summarizeMonth,
+  transactionForFixedItemMonth,
+  walletBalance,
+} from '../utils/finance.js';
 
 export function DashboardPage({ data, actions, paymentMethods, currentMonth, currentYear, setPage }) {
   const summary = summarizeMonth(data, currentMonth, currentYear);
   const balance = walletBalance(data);
   const recent = [...summary.monthTransactions].sort((a, b) => (b.date || '').localeCompare(a.date || '')).slice(0, 6);
+  const fixedMonth = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}`;
+  const fixedRows = fixedItemsForMonth(data.fixedItems, currentMonth, currentYear)
+    .map((item) => ({
+      ...item,
+      launchedTransaction: transactionForFixedItemMonth(data.transactions, item.id, fixedMonth),
+    }));
+  const pendingFixed = fixedRows
+    .filter((item) => !item.launchedTransaction)
+    .sort((a, b) => (a.dueDate || '').localeCompare(b.dueDate || ''));
   const categoryTotals = data.categories.map((category) => ({
     category,
     total: summary.monthTransactions
@@ -42,6 +57,28 @@ export function DashboardPage({ data, actions, paymentMethods, currentMonth, cur
           <button className="text-button" onClick={() => setPage('transactions')} type="button">Ver tudo</button>
         </div>
         <TransactionList data={data} items={recent} actions={actions} compact />
+      </section>
+
+      <section className="panel">
+        <div className="panel-header">
+          <div>
+            <h2>Fixos e assinaturas</h2>
+            <p>{pendingFixed.length} pendentes no mes.</p>
+          </div>
+          <button className="text-button" onClick={() => setPage('fixed')} type="button">Ver fila</button>
+        </div>
+        <div className="list">
+          {pendingFixed.slice(0, 5).map((item) => (
+            <div className="list-row" key={item.id}>
+              <div className="row-main">
+                <strong>{item.name}</strong>
+                <span>{item.dueDate} · {item.kind === 'assinatura' ? 'Assinatura' : 'Fixo'}</span>
+              </div>
+              <strong className="money-negative">{formatCurrency(item.amount)}</strong>
+            </div>
+          ))}
+          {!pendingFixed.length && <EmptyState title="Nada pendente em fixos e assinaturas." />}
+        </div>
       </section>
 
       <section className="panel">

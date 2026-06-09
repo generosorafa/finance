@@ -35,8 +35,9 @@ export function CategoriesPage({ data, actions }) {
   async function removeCategory(item) {
     const hasTransactions = data.transactions.some((entry) => entry.category === item.id);
     const hasInstallments = data.installments.some((entry) => entry.categoryId === item.id);
-    if (hasTransactions || hasInstallments) {
-      window.alert('Esta categoria tem transacoes ou parcelamentos vinculados. Edite/remova esses itens antes de excluir.');
+    const hasFixedItems = data.fixedItems.some((entry) => entry.category === item.id);
+    if (hasTransactions || hasInstallments || hasFixedItems) {
+      window.alert('Esta categoria tem transacoes, parcelamentos ou fixos/assinaturas vinculados. Edite/remova esses itens antes de excluir.');
       return;
     }
     if (!window.confirm(`Excluir a categoria "${item.name}"?`)) return;

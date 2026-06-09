@@ -17,7 +17,7 @@ service cloud.firestore {
         'id', 'type', 'desc', 'amount', 'date', 'category', 'payment',
         'necessity', 'nature', 'recurrent', 'linkedCardId', 'note',
         'createdAt', 'recurrentRootId', 'generatedMonth',
-        'invoiceMonth', 'walletEntryId'
+        'invoiceMonth', 'walletEntryId', 'source', 'fixedItemId', 'fixedMonth'
       ])
         && request.resource.data.type in ['receita', 'despesa']
         && request.resource.data.desc is string
@@ -46,6 +46,14 @@ service cloud.firestore {
         allow create, update: if isOwner(userId) && validOwnedDoc(docId, [
           'id', 'desc', 'total', 'parcels', 'purchaseDate', 'firstMonth',
           'cardId', 'categoryId', 'parcelValue', 'createdAt'
+        ]);
+      }
+
+      match /fixedItems/{docId} {
+        allow read, delete: if isOwner(userId);
+        allow create, update: if isOwner(userId) && validOwnedDoc(docId, [
+          'id', 'kind', 'name', 'amount', 'dueDay', 'category', 'payment',
+          'linkedCardId', 'startMonth', 'endMonth', 'active', 'note', 'createdAt'
         ]);
       }
 

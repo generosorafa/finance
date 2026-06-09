@@ -2,6 +2,7 @@ import {
   BadgeAlert,
   BookOpen,
   BriefcaseBusiness,
+  CalendarCheck,
   Car,
   CreditCard,
   Download,
@@ -23,6 +24,7 @@ import {
 export const NAV_ITEMS = [
   { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { id: 'transactions', label: 'Transacoes', icon: ListChecks },
+  { id: 'fixed', label: 'Fixos', icon: CalendarCheck },
   { id: 'cards', label: 'Cartoes', icon: CreditCard },
   { id: 'categories', label: 'Categorias', icon: PieChart },
   { id: 'wallet', label: 'Carteira', icon: Wallet },
@@ -47,4 +49,3 @@ export const CATEGORY_ICON_MAP = {
   Target,
   TrendingUp,
 };
-

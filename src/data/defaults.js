@@ -24,6 +24,7 @@ export const DEFAULT_PAYMENT_METHODS = [
 export const COLLECTIONS = [
   'transactions',
   'installments',
+  'fixedItems',
   'cards',
   'categories',
   'wallet',
@@ -53,4 +54,3 @@ export const MONTHS = [
   'Novembro',
   'Dezembro',
 ];
-

@@ -12,6 +12,7 @@ import { walletEntryForTransaction } from '../utils/finance.js';
 const EMPTY_DATA = {
   transactions: [],
   installments: [],
+  fixedItems: [],
   cards: [],
   categories: [],
   wallet: [],
