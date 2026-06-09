@@ -503,6 +503,64 @@ select:focus {
   min-height: 38px;
 }
 
+.asset-item {
+  display: grid;
+  gap: 8px;
+}
+
+.asset-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface-2);
+  min-width: 0;
+  cursor: pointer;
+}
+
+.asset-row:focus-visible {
+  outline: 2px solid var(--info);
+  outline-offset: 2px;
+}
+
+.asset-row > strong {
+  white-space: nowrap;
+}
+
+.asset-progress {
+  display: grid;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.asset-progress small {
+  color: var(--muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.allocation-form {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgba(100, 167, 255, 0.07);
+}
+
+.allocation-history {
+  display: grid;
+  gap: 8px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+}
+
 .bar-label {
   display: flex;
   justify-content: space-between;
@@ -964,6 +1022,20 @@ select:focus {
   .budget-input,
   .budget-row .icon-button {
     grid-column: 1 / -1;
+    width: 100%;
+  }
+
+  .asset-row,
+  .allocation-form {
+    grid-template-columns: 1fr;
+  }
+
+  .asset-row {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .asset-row .icon-button {
     width: 100%;
   }
 }

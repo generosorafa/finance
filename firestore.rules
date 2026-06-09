@@ -97,21 +97,21 @@ service cloud.firestore {
       match /goals/{docId} {
         allow read, delete: if isOwner(userId);
         allow create, update: if isOwner(userId) && validOwnedDoc(docId, [
-          'id', 'name', 'target', 'current', 'deadline', 'createdAt'
+          'id', 'name', 'target', 'current', 'startDate', 'deadline', 'note', 'createdAt'
         ]);
       }
 
       match /debts/{docId} {
         allow read, delete: if isOwner(userId);
         allow create, update: if isOwner(userId) && validOwnedDoc(docId, [
-          'id', 'name', 'creditor', 'total', 'paid', 'deadline', 'createdAt'
+          'id', 'name', 'creditor', 'total', 'paid', 'incurredDate', 'deadline', 'note', 'createdAt'
         ]);
       }
 
       match /allocations/{docId} {
         allow read, delete: if isOwner(userId);
         allow create, update: if isOwner(userId) && validOwnedDoc(docId, [
-          'id', 'type', 'targetId', 'amount', 'remaining', 'createdAt'
+          'id', 'type', 'targetId', 'amount', 'remaining', 'date', 'note', 'createdAt'
         ]);
       }
 

@@ -1,6 +1,8 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
+  allocatedToTarget,
+  allocationCashSummary,
   categoryBudgetForMonth,
   categorySpendingForMonth,
   fixedItemDueDate,
@@ -9,6 +11,7 @@ import {
   getCardInvoiceMonth,
   installmentsForMonth,
   monthlyLedgerEntries,
+  targetAllocations,
   transactionForFixedItemMonth,
   transactionsForCardInvoice,
   walletEntryForTransaction,
@@ -132,4 +135,35 @@ test('categoryBudgetForMonth returns latest budget at or before month', () => {
 
   assert.equal(categoryBudgetForMonth(budgets, 'cat_alim', '2026-06').amount, 950);
   assert.equal(categoryBudgetForMonth(budgets, 'cat_alim', '2025-12'), null);
+});
+
+test('allocationCashSummary uses special category transactions as cash source', () => {
+  const data = {
+    categories: [{ id: 'cat_metas', name: 'Metas', special: 'goals' }],
+    transactions: [
+      { id: 'tx1', type: 'despesa', category: 'cat_metas', amount: 500 },
+      { id: 'tx2', type: 'receita', category: 'cat_metas', amount: 300 },
+      { id: 'tx3', type: 'despesa', category: 'cat_outros', amount: 200 },
+    ],
+    allocations: [{ id: 'a1', type: 'goals', targetId: 'goal_1', amount: 150 }],
+  };
+
+  assert.deepEqual(allocationCashSummary(data, 'goals'), {
+    sourceTotal: 500,
+    allocatedTotal: 150,
+    available: 350,
+  });
+});
+
+test('target allocation helpers summarize and sort history', () => {
+  const data = {
+    allocations: [
+      { id: 'old', type: 'debts', targetId: 'debt_1', amount: 100, date: '2026-05-01' },
+      { id: 'new', type: 'debts', targetId: 'debt_1', amount: 200, date: '2026-06-01' },
+      { id: 'other', type: 'debts', targetId: 'debt_2', amount: 300, date: '2026-06-02' },
+    ],
+  };
+
+  assert.equal(allocatedToTarget(data, 'debts', 'debt_1'), 300);
+  assert.deepEqual(targetAllocations(data, 'debts', 'debt_1').map((item) => item.id), ['new', 'old']);
 });

@@ -116,6 +116,45 @@ export function categoryBudgetForMonth(categoryBudgets, categoryId, budgetMonth)
     .sort((a, b) => (b.month || '').localeCompare(a.month || ''))[0] || null;
 }
 
+export function specialCategoryForType(categories, type) {
+  return categories.find((item) => item.special === type) || null;
+}
+
+export function allocationSourceTransactions(data, type) {
+  const category = specialCategoryForType(data.categories, type);
+  if (!category) return [];
+  return data.transactions.filter((item) => item.type === 'despesa' && item.category === category.id);
+}
+
+export function allocationsForType(data, type) {
+  return data.allocations.filter((item) => item.type === type);
+}
+
+export function allocationCashSummary(data, type) {
+  const sourceTotal = allocationSourceTransactions(data, type)
+    .reduce((sum, item) => sum + Number(item.amount || 0), 0);
+  const allocatedTotal = allocationsForType(data, type)
+    .reduce((sum, item) => sum + Number(item.amount || 0), 0);
+
+  return {
+    sourceTotal,
+    allocatedTotal,
+    available: Math.max(0, sourceTotal - allocatedTotal),
+  };
+}
+
+export function allocatedToTarget(data, type, targetId) {
+  return allocationsForType(data, type)
+    .filter((item) => item.targetId === targetId)
+    .reduce((sum, item) => sum + Number(item.amount || 0), 0);
+}
+
+export function targetAllocations(data, type, targetId) {
+  return allocationsForType(data, type)
+    .filter((item) => item.targetId === targetId)
+    .sort((a, b) => (b.date || '').localeCompare(a.date || '') || Number(b.createdAt || 0) - Number(a.createdAt || 0));
+}
+
 export function installmentsForMonth(installments, monthIndex, year) {
   const target = year * 12 + monthIndex;
   return installments
