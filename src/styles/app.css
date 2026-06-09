@@ -500,10 +500,18 @@ select:focus {
   color: var(--muted);
 }
 
-.credit-card .icon-button {
+.credit-card > .icon-button {
   position: absolute;
   right: 12px;
   top: 12px;
+}
+
+.card-actions {
+  position: absolute;
+  right: 12px;
+  top: 12px;
+  display: flex;
+  gap: 6px;
 }
 
 .panel-subtitle {

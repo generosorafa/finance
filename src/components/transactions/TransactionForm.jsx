@@ -1,10 +1,9 @@
 import { useEffect, useState } from 'react';
-import { Plus } from 'lucide-react';
+import { Check, Plus, X } from 'lucide-react';
 import { Field } from '../ui.jsx';
-import { getCardIdFromPayment, makeId, today } from '../../utils/finance.js';
+import { getCardIdFromPayment, getCardInvoiceMonth, makeId, today } from '../../utils/finance.js';
 
-export function TransactionForm({ actions, categories, cards, paymentMethods, compact = false }) {
-  const [form, setForm] = useState({
+const blankTransaction = (categories, paymentMethods) => ({
     type: 'despesa',
     desc: '',
     amount: '',
@@ -13,30 +12,58 @@ export function TransactionForm({ actions, categories, cards, paymentMethods, co
     payment: paymentMethods[0] || 'PIX',
     necessity: 'necessario',
     nature: 'variavel',
-    recurrent: 'nao',
     linkedCardId: '',
+    invoiceMonth: '',
     note: '',
-  });
+});
+
+export function TransactionForm({
+  actions,
+  categories,
+  cards,
+  editingTransaction = null,
+  onCancelEdit,
+  onSaved,
+  paymentMethods,
+  compact = false,
+}) {
+  const [form, setForm] = useState(() => blankTransaction(categories, paymentMethods));
 
   useEffect(() => {
     if (!form.category && categories[0]) setForm((current) => ({ ...current, category: categories[0].id }));
   }, [categories, form.category]);
+
+  useEffect(() => {
+    if (editingTransaction) {
+      setForm({
+        ...blankTransaction(categories, paymentMethods),
+        ...editingTransaction,
+        amount: String(editingTransaction.amount || ''),
+      });
+      return;
+    }
+
+    setForm(blankTransaction(categories, paymentMethods));
+  }, [editingTransaction, categories, paymentMethods]);
 
   async function submit(event) {
     event.preventDefault();
     if (!form.desc.trim() || !Number(form.amount)) return;
 
     const linkedCardId = getCardIdFromPayment(form.payment);
+    const card = cards.find((item) => item.id === linkedCardId);
     const item = {
       ...form,
-      id: makeId('tx'),
+      id: editingTransaction?.id || makeId('tx'),
       amount: Number(form.amount),
       linkedCardId,
-      createdAt: Date.now(),
+      invoiceMonth: linkedCardId ? getCardInvoiceMonth(card, form.date) : '',
+      createdAt: editingTransaction?.createdAt || Date.now(),
     };
 
-    await actions.save('transactions', item);
-    setForm((current) => ({ ...current, desc: '', amount: '', note: '' }));
+    await actions.saveTransaction(item, editingTransaction);
+    setForm(blankTransaction(categories, paymentMethods));
+    onSaved?.();
   }
 
   return (
@@ -78,21 +105,21 @@ export function TransactionForm({ actions, categories, cards, paymentMethods, co
         <select value={form.nature} onChange={(event) => setForm({ ...form, nature: event.target.value })}>
           <option value="variavel">Variavel</option>
           <option value="fixo">Fixo</option>
-        </select>
-      </Field>
-      <Field label="Recorrente">
-        <select value={form.recurrent} onChange={(event) => setForm({ ...form, recurrent: event.target.value })}>
-          <option value="nao">Nao</option>
-          <option value="sim">Sim</option>
+          <option value="assinatura">Assinatura</option>
         </select>
       </Field>
       <Field label="Observacao">
         <input value={form.note} onChange={(event) => setForm({ ...form, note: event.target.value })} placeholder="Opcional" />
       </Field>
       <div className="form-actions">
-        <button className="primary-button" type="submit"><Plus size={17} /> Salvar</button>
+        <button className="primary-button" type="submit">
+          {editingTransaction ? <Check size={17} /> : <Plus size={17} />}
+          {editingTransaction ? 'Atualizar' : 'Salvar'}
+        </button>
+        {editingTransaction && (
+          <button className="secondary-button" onClick={onCancelEdit} type="button"><X size={17} /> Cancelar</button>
+        )}
       </div>
     </form>
   );
 }
-

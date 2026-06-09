@@ -27,7 +27,7 @@ export function DashboardPage({ data, actions, paymentMethods, currentMonth, cur
         <div className="panel-header">
           <div>
             <h2>Lancar transacao</h2>
-            <p>Receitas, despesas, recorrencias e categorias continuam no mesmo fluxo.</p>
+            <p>Receitas, despesas, gastos fixos e cartoes no mesmo fluxo.</p>
           </div>
         </div>
         <TransactionForm actions={actions} categories={data.categories} cards={data.cards} paymentMethods={paymentMethods} compact />
@@ -56,4 +56,3 @@ export function DashboardPage({ data, actions, paymentMethods, currentMonth, cur
     </div>
   );
 }
-

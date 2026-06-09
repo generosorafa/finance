@@ -7,7 +7,8 @@ O arquivo original enviado pelo usuario era um `index.html` unico com CSS, HTML,
 - Login com Google.
 - Dados separados por usuario.
 - Dashboard mensal.
-- Transacoes com receitas, despesas, natureza, necessidade, recorrencia e forma de pagamento.
+- Transacoes com receitas, despesas, natureza, necessidade e forma de pagamento.
+- Gastos fixos, assinaturas e parcelamentos devem substituir a recorrencia generica do prototipo.
 - Parcelamentos vinculados a cartoes.
 - Cartoes de credito com fechamento, vencimento e fatura.
 - Categorias editaveis.
@@ -16,7 +17,7 @@ O arquivo original enviado pelo usuario era um `index.html` unico com CSS, HTML,
 - Metas.
 - Dividas.
 - Alocacao de saldo para metas, investimentos e dividas.
-- Aplicacao mensal de transacoes recorrentes.
+- Recorrencia generica removida por decisao de produto.
 - Exportacao CSV.
 - Relatorio mensal em HTML para baixar/imprimir.
 
@@ -42,4 +43,3 @@ config/settings
 - Regras de seguranca ficam versionadas em `firestore.rules`.
 - Interface passa a ser React para facilitar telas, componentes e estados.
 - A primeira etapa prioriza preservar o fluxo de dados e preparar a reestilizacao.
-

@@ -4,7 +4,6 @@ import { isFirebaseConfigured, subscribeToAuth } from './firebase/client.js';
 import { useFinanceData } from './hooks/useFinanceData.js';
 import { AppShell } from './layout/AppShell.jsx';
 import { PageRenderer } from './pages/PageRenderer.jsx';
-import { applyRecurrentTransactions } from './services/recurrences.js';
 
 export default function App() {
   const [user, setUser] = useState(null);
@@ -26,11 +25,6 @@ export default function App() {
   }, []);
 
   const finance = useFinanceData(user);
-
-  useEffect(() => {
-    if (!user || finance.loading || !finance.data.transactions.length) return;
-    void applyRecurrentTransactions(finance.data, finance.actions);
-  }, [user, finance.loading, finance.data.transactions.length, finance.actions, finance.data]);
 
   function moveMonth(delta) {
     const next = new Date(currentYear, currentMonth + delta, 1);
@@ -64,4 +58,3 @@ export default function App() {
     </AppShell>
   );
 }
-

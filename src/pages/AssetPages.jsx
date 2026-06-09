@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Plus, Trash2 } from 'lucide-react';
+import { Check, Pencil, Plus, Trash2, X } from 'lucide-react';
 import { EmptyState, Field } from '../components/ui.jsx';
 import { formatCurrency, makeId, today } from '../utils/finance.js';
 
@@ -65,6 +65,7 @@ export function DebtsPage({ data, actions }) {
 function GenericAssetPage({ title, collection, items, actions, fields, derive = () => ({}), valueLabel }) {
   const initial = Object.fromEntries(fields.map(([name]) => [name, '']));
   const [form, setForm] = useState(initial);
+  const [editingItem, setEditingItem] = useState(null);
 
   async function submit(event) {
     event.preventDefault();
@@ -74,18 +75,35 @@ function GenericAssetPage({ title, collection, items, actions, fields, derive = 
       numeric[key] = ['qty', 'avgPrice', 'target', 'current', 'total', 'paid'].includes(key) ? Number(value || 0) : value;
     });
     await actions.save(collection, {
+      ...editingItem,
       ...numeric,
       ...derive(numeric),
-      id: makeId(collection.slice(0, -1) || collection),
-      createdAt: Date.now(),
+      id: editingItem?.id || makeId(collection.slice(0, -1) || collection),
+      createdAt: editingItem?.createdAt || Date.now(),
     });
+    setEditingItem(null);
     setForm(initial);
+  }
+
+  function edit(item) {
+    setEditingItem(item);
+    setForm(Object.fromEntries(fields.map(([name]) => [name, String(item[name] ?? '')])));
+  }
+
+  function cancelEdit() {
+    setEditingItem(null);
+    setForm(initial);
+  }
+
+  async function remove(item) {
+    if (!window.confirm(`Excluir "${item.name}"?`)) return;
+    await actions.remove(collection, item.id);
   }
 
   return (
     <div className="content-grid">
       <section className="panel">
-        <div className="panel-header"><h2>Novo registro</h2></div>
+        <div className="panel-header"><h2>{editingItem ? 'Editar registro' : 'Novo registro'}</h2></div>
         <form className="form-grid one-col" onSubmit={submit}>
           {fields.map(([name, label]) => (
             <Field label={label} key={name}>
@@ -98,7 +116,10 @@ function GenericAssetPage({ title, collection, items, actions, fields, derive = 
               />
             </Field>
           ))}
-          <div className="form-actions"><button className="primary-button" type="submit"><Plus size={17} /> Salvar</button></div>
+          <div className="form-actions">
+            <button className="primary-button" type="submit">{editingItem ? <Check size={17} /> : <Plus size={17} />} {editingItem ? 'Atualizar' : 'Salvar'}</button>
+            {editingItem && <button className="secondary-button" onClick={cancelEdit} type="button"><X size={17} /> Cancelar</button>}
+          </div>
         </form>
       </section>
       <section className="panel span-2">
@@ -111,7 +132,8 @@ function GenericAssetPage({ title, collection, items, actions, fields, derive = 
                 <span>{item.type || item.creditor || item.deadline || 'registro'}</span>
               </div>
               <strong>{valueLabel(item)}</strong>
-              <button className="icon-button danger" onClick={() => actions.remove(collection, item.id)} title="Excluir" type="button"><Trash2 size={16} /></button>
+              <button className="icon-button" onClick={() => edit(item)} title="Editar" type="button"><Pencil size={16} /></button>
+              <button className="icon-button danger" onClick={() => remove(item)} title="Excluir" type="button"><Trash2 size={16} /></button>
             </div>
           ))}
           {!items.length && <EmptyState title={`Nenhum item em ${title.toLowerCase()}.`} />}
@@ -120,4 +142,3 @@ function GenericAssetPage({ title, collection, items, actions, fields, derive = 
     </div>
   );
 }
-

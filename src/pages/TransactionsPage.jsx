@@ -6,6 +6,7 @@ import { isSameMonth } from '../utils/finance.js';
 
 export function TransactionsPage({ data, actions, paymentMethods, currentMonth, currentYear }) {
   const [filter, setFilter] = useState('all');
+  const [editingTransaction, setEditingTransaction] = useState(null);
   const monthly = data.transactions
     .filter((item) => isSameMonth(item.date, currentMonth, currentYear))
     .filter((item) => filter === 'all' || item.type === filter)
@@ -16,11 +17,19 @@ export function TransactionsPage({ data, actions, paymentMethods, currentMonth, 
       <section className="panel span-2">
         <div className="panel-header">
           <div>
-            <h2>Nova transacao</h2>
-            <p>Use recorrente para automatizar lancamentos mensais.</p>
+            <h2>{editingTransaction ? 'Editar transacao' : 'Nova transacao'}</h2>
+            <p>Receitas, despesas, gastos fixos e pagamentos em cartao ficam sincronizados com carteira e faturas.</p>
           </div>
         </div>
-        <TransactionForm actions={actions} categories={data.categories} cards={data.cards} paymentMethods={paymentMethods} />
+        <TransactionForm
+          actions={actions}
+          categories={data.categories}
+          cards={data.cards}
+          editingTransaction={editingTransaction}
+          onCancelEdit={() => setEditingTransaction(null)}
+          onSaved={() => setEditingTransaction(null)}
+          paymentMethods={paymentMethods}
+        />
       </section>
       <section className="panel span-2">
         <div className="panel-header">
@@ -34,9 +43,8 @@ export function TransactionsPage({ data, actions, paymentMethods, currentMonth, 
             ['despesa', 'Despesas'],
           ]} />
         </div>
-        <TransactionList data={data} items={monthly} actions={actions} />
+        <TransactionList data={data} items={monthly} actions={actions} onEdit={setEditingTransaction} />
       </section>
     </div>
   );
 }
-

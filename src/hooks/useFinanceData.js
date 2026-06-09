@@ -7,6 +7,7 @@ import {
   saveSettings as persistSettings,
   saveUserDocument,
 } from '../firebase/client.js';
+import { walletEntryForTransaction } from '../utils/finance.js';
 
 const EMPTY_DATA = {
   transactions: [],
@@ -54,7 +55,31 @@ export function useFinanceData(user) {
         }
       }
 
-      setData({ ...EMPTY_DATA, ...loaded, categories, settings });
+      let wallet = loaded.wallet || [];
+      const transactions = loaded.transactions || [];
+      const missingWalletEntries = transactions
+        .map((transaction) => walletEntryForTransaction(transaction))
+        .filter((entry) => entry && !wallet.some((walletEntry) => walletEntry.id === entry.id));
+
+      let hydratedTransactions = transactions;
+      if (missingWalletEntries.length) {
+        await Promise.all(missingWalletEntries.map((entry) => saveUserDocument(userId, 'wallet', entry.id, entry)));
+        await Promise.all(transactions
+          .filter((transaction) => missingWalletEntries.some((entry) => entry.transactionId === transaction.id) && !transaction.walletEntryId)
+          .map((transaction) => saveUserDocument(userId, 'transactions', transaction.id, {
+            ...transaction,
+            walletEntryId: `wallet_tx_${transaction.id}`,
+          })));
+        wallet = [...wallet, ...missingWalletEntries];
+        hydratedTransactions = transactions.map((transaction) => {
+          const entry = missingWalletEntries.find((walletEntry) => walletEntry.transactionId === transaction.id);
+          return entry && !transaction.walletEntryId
+            ? { ...transaction, walletEntryId: entry.id }
+            : transaction;
+        });
+      }
+
+      setData({ ...EMPTY_DATA, ...loaded, categories, transactions: hydratedTransactions, wallet, settings });
     } catch (err) {
       setError(err.message || 'Erro ao carregar dados.');
     } finally {
@@ -75,12 +100,69 @@ export function useFinanceData(user) {
         [collectionName]: upsert(current[collectionName], item),
       }));
     },
+    async saveTransaction(item, previousItem = null) {
+      if (!userId) return;
+
+      const walletEntry = walletEntryForTransaction(item);
+      const previousWalletEntry = previousItem ? walletEntryForTransaction(previousItem) : null;
+      const transaction = {
+        ...item,
+        walletEntryId: walletEntry?.id || '',
+      };
+
+      await saveUserDocument(userId, 'transactions', transaction.id, transaction);
+
+      if (previousWalletEntry && previousWalletEntry.id !== walletEntry?.id) {
+        await removeUserDocument(userId, 'wallet', previousWalletEntry.id);
+      }
+
+      if (walletEntry) {
+        await saveUserDocument(userId, 'wallet', walletEntry.id, walletEntry);
+      } else if (previousWalletEntry) {
+        await removeUserDocument(userId, 'wallet', previousWalletEntry.id);
+      }
+
+      setData((current) => {
+        let wallet = current.wallet;
+        if (previousWalletEntry && previousWalletEntry.id !== walletEntry?.id) {
+          wallet = wallet.filter((entry) => entry.id !== previousWalletEntry.id);
+        }
+        if (walletEntry) {
+          wallet = upsert(wallet, walletEntry);
+        } else if (previousWalletEntry) {
+          wallet = wallet.filter((entry) => entry.id !== previousWalletEntry.id);
+        }
+
+        return {
+          ...current,
+          transactions: upsert(current.transactions, transaction),
+          wallet,
+        };
+      });
+    },
     async remove(collectionName, id) {
       if (!userId) return;
       await removeUserDocument(userId, collectionName, id);
       setData((current) => ({
         ...current,
         [collectionName]: current[collectionName].filter((item) => item.id !== id),
+      }));
+    },
+    async removeTransaction(transaction) {
+      if (!userId) return;
+
+      const walletEntry = walletEntryForTransaction(transaction);
+      await removeUserDocument(userId, 'transactions', transaction.id);
+      if (walletEntry) {
+        await removeUserDocument(userId, 'wallet', walletEntry.id);
+      }
+
+      setData((current) => ({
+        ...current,
+        transactions: current.transactions.filter((item) => item.id !== transaction.id),
+        wallet: walletEntry
+          ? current.wallet.filter((item) => item.id !== walletEntry.id)
+          : current.wallet,
       }));
     },
     async saveSettings(nextSettings) {

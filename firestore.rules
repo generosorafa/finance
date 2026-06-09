@@ -16,7 +16,8 @@ service cloud.firestore {
       return validOwnedDoc(docId, [
         'id', 'type', 'desc', 'amount', 'date', 'category', 'payment',
         'necessity', 'nature', 'recurrent', 'linkedCardId', 'note',
-        'createdAt', 'recurrentRootId', 'generatedMonth'
+        'createdAt', 'recurrentRootId', 'generatedMonth',
+        'invoiceMonth', 'walletEntryId'
       ])
         && request.resource.data.type in ['receita', 'despesa']
         && request.resource.data.desc is string
@@ -66,7 +67,7 @@ service cloud.firestore {
         allow read, delete: if isOwner(userId);
         allow create, update: if isOwner(userId) && validOwnedDoc(docId, [
           'id', 'type', 'desc', 'amount', 'date', 'createdAt',
-          'invoiceKey', 'cardId'
+          'invoiceKey', 'cardId', 'source', 'transactionId'
         ]);
       }
 

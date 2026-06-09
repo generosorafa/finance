@@ -1,9 +1,14 @@
-import { Trash2 } from 'lucide-react';
+import { Pencil, Trash2 } from 'lucide-react';
 import { CategoryIcon, EmptyState, paymentLabel } from '../ui.jsx';
 import { formatCurrency, getCategory } from '../../utils/finance.js';
 
-export function TransactionList({ data, items, actions, compact = false }) {
+export function TransactionList({ data, items, actions, compact = false, onEdit }) {
   if (!items.length) return <EmptyState title="Nenhuma transacao por aqui." />;
+
+  async function remove(item) {
+    if (!window.confirm(`Excluir "${item.desc}"?`)) return;
+    await actions.removeTransaction(item);
+  }
 
   return (
     <div className="list">
@@ -18,11 +23,15 @@ export function TransactionList({ data, items, actions, compact = false }) {
               <strong>{item.desc}</strong>
               <span>{item.date || '-'} · {category.name} · {paymentLabel(item.payment, data.cards)}</span>
             </div>
-            {!compact && item.recurrent === 'sim' && <span className="pill">recorrente</span>}
             <strong className={item.type === 'receita' ? 'money-positive' : 'money-negative'}>
               {item.type === 'receita' ? '+' : '-'}{formatCurrency(item.amount)}
             </strong>
-            <button className="icon-button danger" onClick={() => actions.remove('transactions', item.id)} title="Excluir" type="button">
+            {onEdit && (
+              <button className="icon-button" onClick={() => onEdit(item)} title="Editar" type="button">
+                <Pencil size={16} />
+              </button>
+            )}
+            <button className="icon-button danger" onClick={() => remove(item)} title="Excluir" type="button">
               <Trash2 size={16} />
             </button>
           </div>
@@ -31,4 +40,3 @@ export function TransactionList({ data, items, actions, compact = false }) {
     </div>
   );
 }
-

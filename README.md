@@ -2,6 +2,8 @@
 
 Aplicacao financeira pessoal criada a partir do prototipo legado em HTML unico. A nova base usa React, Vite e Firebase modular para facilitar a evolucao de layout, dados e automacoes.
 
+Decisao de produto atual: nao usar recorrencia generica. O app deve evoluir com conceitos mais claros para gastos fixos, assinaturas e parcelamentos.
+
 ## Como rodar
 
 1. Instale as dependencias:
@@ -37,4 +39,5 @@ Publique as regras de `firestore.rules` no console do Firebase antes de usar em 
 
 ```bash
 npm run build
+npm test
 ```

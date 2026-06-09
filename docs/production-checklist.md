@@ -20,11 +20,10 @@
 - [ ] Criar transacao e confirmar no Firestore.
 - [ ] Validar mobile.
 - [ ] Validar exportacao CSV e relatorio.
-- [ ] Validar recorrencias.
+- [ ] Validar gastos fixos, assinaturas e parcelamentos.
 
 ## GitHub
 
 - [ ] CI verde.
 - [ ] Branch protection em `main`.
 - [ ] Deploy automatizado configurado.
-
