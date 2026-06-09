@@ -249,6 +249,54 @@ export function walletBalance(data) {
   }, initial);
 }
 
+export function smartCashSummary(data, monthIndex, year) {
+  const targetMonth = monthKeyFromParts(year, monthIndex);
+  const wallet = walletBalance(data);
+  const fixedRows = fixedItemsForMonth(data.fixedItems || [], monthIndex, year)
+    .map((item) => ({
+      ...item,
+      launchedTransaction: transactionForFixedItemMonth(data.transactions || [], item.id, targetMonth),
+      cardId: getCardIdFromPayment(item.payment),
+    }));
+  const pendingFixed = fixedRows.filter((item) => !item.launchedTransaction);
+  const pendingFixedTotal = pendingFixed.reduce((sum, item) => sum + Number(item.amount || 0), 0);
+  const pendingCashFixedTotal = pendingFixed
+    .filter((item) => !item.cardId)
+    .reduce((sum, item) => sum + Number(item.amount || 0), 0);
+  const pendingCardFixedTotal = pendingFixedTotal - pendingCashFixedTotal;
+  const invoices = cardInvoiceSummaries(data, monthIndex, year);
+  const openInvoices = invoices.filter((item) => item.total > 0 && item.status !== 'paid');
+  const openInvoiceTotal = openInvoices.reduce((sum, item) => sum + Number(item.total || 0), 0);
+  const goalsCash = allocationCashSummary(data, 'goals');
+  const debtsCash = allocationCashSummary(data, 'debts');
+  const reservedTotal = goalsCash.sourceTotal + debtsCash.sourceTotal;
+  const reservedAllocated = goalsCash.allocatedTotal + debtsCash.allocatedTotal;
+  const reservedAvailable = goalsCash.available + debtsCash.available;
+  const committedTotal = openInvoiceTotal + pendingFixedTotal;
+  const freeEstimated = wallet - committedTotal;
+
+  return {
+    month: targetMonth,
+    wallet,
+    committedTotal,
+    freeEstimated,
+    openInvoiceTotal,
+    pendingFixedTotal,
+    pendingCashFixedTotal,
+    pendingCardFixedTotal,
+    reservedTotal,
+    reservedAllocated,
+    reservedAvailable,
+    goalsCash,
+    debtsCash,
+    openInvoices,
+    pendingFixed,
+    fixedRows,
+    invoices,
+    status: freeEstimated < 0 ? 'negative' : committedTotal > 0 ? 'attention' : 'free',
+  };
+}
+
 export function cardInvoiceSummaries(data, monthIndex, year) {
   const invoiceMonth = monthKeyFromParts(year, monthIndex);
   const summary = summarizeMonth(data, monthIndex, year);

@@ -15,6 +15,7 @@ import {
   installmentsForMonth,
   monthlyLedgerEntries,
   monthlyClosingInsights,
+  smartCashSummary,
   targetAllocations,
   transactionForFixedItemMonth,
   transactionsForCardInvoice,
@@ -219,6 +220,39 @@ test('buildMonthlyClosingSnapshot stores compact monthly totals', () => {
   assert.equal(snapshot.carteira, 150);
   assert.equal(snapshot.note, 'ok');
   assert.equal(snapshot.closedAt, 123);
+});
+
+test('smartCashSummary estimates free cash after open invoices and pending fixed items', () => {
+  const data = {
+    settings: { initialBalance: 1000 },
+    wallet: [
+      { id: 'w1', type: 'entrada', amount: 500 },
+      { id: 'w2', type: 'saida', amount: 100 },
+      { id: 'w3', type: 'saida', amount: 300, source: 'transaction', transactionId: 'tx_goal' },
+    ],
+    categories: [{ id: 'cat_metas', name: 'Metas', special: 'goals' }],
+    transactions: [
+      { id: 'tx_card', type: 'despesa', amount: 200, payment: 'CC::card_1', date: '2026-06-03' },
+      { id: 'tx_goal', type: 'despesa', amount: 300, category: 'cat_metas', payment: 'PIX', date: '2026-06-04' },
+    ],
+    installments: [],
+    fixedItems: [
+      { id: 'rent', name: 'Aluguel', amount: 400, dueDay: 10, active: true, startMonth: '2026-01', payment: 'PIX' },
+      { id: 'stream', name: 'Streaming', amount: 50, dueDay: 12, active: true, startMonth: '2026-01', payment: 'CC::card_1' },
+    ],
+    cards: [{ id: 'card_1', name: 'Visa', closeDay: 10, dueDay: 20 }],
+    allocations: [{ id: 'a1', type: 'goals', targetId: 'goal_1', amount: 100 }],
+  };
+  const cash = smartCashSummary(data, 5, 2026);
+
+  assert.equal(cash.wallet, 1100);
+  assert.equal(cash.openInvoiceTotal, 200);
+  assert.equal(cash.pendingFixedTotal, 450);
+  assert.equal(cash.committedTotal, 650);
+  assert.equal(cash.freeEstimated, 450);
+  assert.equal(cash.reservedTotal, 300);
+  assert.equal(cash.reservedAllocated, 100);
+  assert.equal(cash.reservedAvailable, 200);
 });
 
 test('allocationCashSummary uses special category transactions as cash source', () => {
