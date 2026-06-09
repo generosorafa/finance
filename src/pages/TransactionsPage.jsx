@@ -18,7 +18,7 @@ export function TransactionsPage({ data, actions, paymentMethods, currentMonth, 
         <div className="panel-header">
           <div>
             <h2>{editingTransaction ? 'Editar transacao' : 'Nova transacao'}</h2>
-            <p>Receitas, despesas, gastos fixos e pagamentos em cartao ficam sincronizados com carteira e faturas.</p>
+            <p>Receitas e despesas variaveis ficam sincronizadas com carteira e faturas. Fixos e assinaturas ficam na aba propria.</p>
           </div>
         </div>
         <TransactionForm

@@ -56,6 +56,7 @@ export function TransactionForm({
       ...form,
       id: editingTransaction?.id || makeId('tx'),
       amount: Number(form.amount),
+      nature: 'variavel',
       linkedCardId,
       invoiceMonth: linkedCardId ? getCardInvoiceMonth(card, form.date) : '',
       createdAt: editingTransaction?.createdAt || Date.now(),
@@ -99,13 +100,6 @@ export function TransactionForm({
           <option value="necessario">Necessario</option>
           <option value="eventual">Eventual</option>
           <option value="nao_necessario">Nao necessario</option>
-        </select>
-      </Field>
-      <Field label="Natureza">
-        <select value={form.nature} onChange={(event) => setForm({ ...form, nature: event.target.value })}>
-          <option value="variavel">Variavel</option>
-          <option value="fixo">Fixo</option>
-          <option value="assinatura">Assinatura</option>
         </select>
       </Field>
       <Field label="Observacao">

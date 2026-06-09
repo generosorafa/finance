@@ -6,7 +6,10 @@ export function TransactionList({ data, items, actions, compact = false, onEdit 
   if (!items.length) return <EmptyState title="Nenhuma transacao por aqui." />;
 
   async function remove(item) {
-    if (!window.confirm(`Excluir "${item.desc}"?`)) return;
+    const message = isFixedItemTransaction(item)
+      ? `Excluir "${item.desc}"? Ele volta como pendente na aba Fixos.`
+      : `Excluir "${item.desc}"?`;
+    if (!window.confirm(message)) return;
     await actions.removeTransaction(item);
   }
 
@@ -14,6 +17,7 @@ export function TransactionList({ data, items, actions, compact = false, onEdit 
     <div className="list">
       {items.map((item) => {
         const category = getCategory(data.categories, item.category);
+        const fixedItemTransaction = isFixedItemTransaction(item);
         return (
           <div className="list-row" key={item.id}>
             <div className="row-icon" style={{ color: category.color }}>
@@ -26,7 +30,8 @@ export function TransactionList({ data, items, actions, compact = false, onEdit 
             <strong className={item.type === 'receita' ? 'money-positive' : 'money-negative'}>
               {item.type === 'receita' ? '+' : '-'}{formatCurrency(item.amount)}
             </strong>
-            {onEdit && (
+            {fixedItemTransaction && <span className="pill warning">{item.nature === 'assinatura' ? 'Assinatura' : 'Fixo'}</span>}
+            {onEdit && !fixedItemTransaction && (
               <button className="icon-button" onClick={() => onEdit(item)} title="Editar" type="button">
                 <Pencil size={16} />
               </button>
@@ -39,4 +44,8 @@ export function TransactionList({ data, items, actions, compact = false, onEdit 
       })}
     </div>
   );
+}
+
+function isFixedItemTransaction(item) {
+  return item.source === 'fixed-item' || Boolean(item.fixedItemId);
 }
