@@ -432,6 +432,32 @@ export function financeAlerts(data, monthIndex, year, referenceDate = new Date()
   ));
 }
 
+export function findAutomationRule(rules, description) {
+  const text = normalizeText(description);
+  if (!text) return null;
+
+  return [...(rules || [])]
+    .filter((rule) => rule.active !== false)
+    .filter((rule) => normalizeText(rule.matchText))
+    .sort((a, b) => (
+      normalizeText(b.matchText).length - normalizeText(a.matchText).length
+      || Number(a.createdAt || 0) - Number(b.createdAt || 0)
+    ))
+    .find((rule) => text.includes(normalizeText(rule.matchText))) || null;
+}
+
+export function applyAutomationRule(transaction, rule) {
+  if (!rule) return transaction;
+
+  return {
+    ...transaction,
+    type: rule.type || transaction.type,
+    category: rule.category || transaction.category,
+    payment: rule.payment || transaction.payment,
+    necessity: rule.necessity || transaction.necessity,
+  };
+}
+
 export function cardInvoiceSummaries(data, monthIndex, year) {
   const invoiceMonth = monthKeyFromParts(year, monthIndex);
   const summary = summarizeMonth(data, monthIndex, year);
@@ -819,6 +845,14 @@ function severityRank(severity) {
   if (severity === 'high') return 3;
   if (severity === 'medium') return 2;
   return 1;
+}
+
+function normalizeText(text) {
+  return String(text || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .trim()
+    .toLowerCase();
 }
 
 function variableExpenseEntriesForProjection(data, monthIndex, year) {

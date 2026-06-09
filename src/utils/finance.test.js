@@ -9,6 +9,8 @@ import {
   cardInvoiceSummaries,
   categorySpendingForMonth,
   financeAlerts,
+  applyAutomationRule,
+  findAutomationRule,
   fixedItemDueDate,
   fixedItemToTransaction,
   fixedItemsForMonth,
@@ -319,6 +321,24 @@ test('financeAlerts prioritizes overdue fixed items, open invoices and category 
   assert.equal(alerts[0].severity, 'high');
   assert.ok(alerts.some((item) => item.type === 'invoice'));
   assert.ok(alerts.some((item) => item.type === 'budget' && item.severity === 'high'));
+});
+
+test('automation rules match descriptions without accents and apply transaction fields', () => {
+  const rules = [
+    { id: 'r1', matchText: 'salario', type: 'receita', category: 'cat_salario', payment: 'PIX', necessity: 'necessario', active: true, createdAt: 2 },
+    { id: 'r2', matchText: 'mercado', type: 'despesa', category: 'cat_alim', payment: 'Debito', necessity: 'necessario', active: false, createdAt: 1 },
+    { id: 'r3', matchText: 'salario mensal', type: 'receita', category: 'cat_extra', payment: 'Transferencia', necessity: 'eventual', active: true, createdAt: 3 },
+  ];
+  const rule = findAutomationRule(rules, 'SALÁRIO mensal');
+  const transaction = applyAutomationRule({ type: 'despesa', category: 'cat_outros', payment: 'PIX', necessity: 'eventual' }, rule);
+
+  assert.equal(rule.id, 'r3');
+  assert.deepEqual(transaction, {
+    type: 'receita',
+    category: 'cat_extra',
+    payment: 'Transferencia',
+    necessity: 'eventual',
+  });
 });
 
 test('allocationCashSummary uses special category transactions as cash source', () => {

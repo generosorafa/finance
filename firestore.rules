@@ -126,6 +126,14 @@ service cloud.firestore {
         ]);
       }
 
+      match /automationRules/{docId} {
+        allow read, delete: if isOwner(userId);
+        allow create, update: if isOwner(userId) && validOwnedDoc(docId, [
+          'id', 'name', 'matchText', 'type', 'category', 'payment',
+          'necessity', 'active', 'createdAt'
+        ]);
+      }
+
       match /config/{configId} {
         allow read: if isOwner(userId) && configId == 'settings';
         allow create, update: if isOwner(userId) && configId == 'settings' && validSettings();

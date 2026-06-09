@@ -34,6 +34,7 @@ export const COLLECTIONS = [
   'debts',
   'allocations',
   'monthlyClosings',
+  'automationRules',
 ];
 
 export const SPECIAL_CATEGORIES = {

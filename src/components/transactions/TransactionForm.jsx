@@ -1,7 +1,14 @@
 import { useEffect, useState } from 'react';
 import { Check, Plus, X } from 'lucide-react';
 import { Field } from '../ui.jsx';
-import { getCardIdFromPayment, getCardInvoiceMonth, makeId, today } from '../../utils/finance.js';
+import {
+  applyAutomationRule,
+  findAutomationRule,
+  getCardIdFromPayment,
+  getCardInvoiceMonth,
+  makeId,
+  today,
+} from '../../utils/finance.js';
 
 const blankTransaction = (categories, paymentMethods) => ({
     type: 'despesa',
@@ -25,9 +32,11 @@ export function TransactionForm({
   onCancelEdit,
   onSaved,
   paymentMethods,
+  automationRules = [],
   compact = false,
 }) {
   const [form, setForm] = useState(() => blankTransaction(categories, paymentMethods));
+  const [appliedRule, setAppliedRule] = useState(null);
 
   useEffect(() => {
     if (!form.category && categories[0]) setForm((current) => ({ ...current, category: categories[0].id }));
@@ -40,11 +49,25 @@ export function TransactionForm({
         ...editingTransaction,
         amount: String(editingTransaction.amount || ''),
       });
+      setAppliedRule(null);
       return;
     }
 
     setForm(blankTransaction(categories, paymentMethods));
+    setAppliedRule(null);
   }, [editingTransaction, categories, paymentMethods]);
+
+  function changeDescription(value) {
+    const nextForm = { ...form, desc: value };
+    if (editingTransaction) {
+      setForm(nextForm);
+      return;
+    }
+
+    const rule = findAutomationRule(automationRules, value);
+    setAppliedRule(rule);
+    setForm(applyAutomationRule(nextForm, rule));
+  }
 
   async function submit(event) {
     event.preventDefault();
@@ -76,8 +99,13 @@ export function TransactionForm({
         </select>
       </Field>
       <Field label="Descricao">
-        <input value={form.desc} onChange={(event) => setForm({ ...form, desc: event.target.value })} placeholder="Mercado, salario, aluguel..." />
+        <input value={form.desc} onChange={(event) => changeDescription(event.target.value)} placeholder="Mercado, salario, aluguel..." />
       </Field>
+      {appliedRule && !compact && (
+        <div className="form-hint">
+          Regra aplicada: <strong>{appliedRule.name || appliedRule.matchText}</strong>
+        </div>
+      )}
       <Field label="Valor">
         <input type="number" min="0" step="0.01" value={form.amount} onChange={(event) => setForm({ ...form, amount: event.target.value })} />
       </Field>

@@ -22,6 +22,7 @@ export function TransactionsPage({ data, actions, paymentMethods, currentMonth, 
         </div>
         <TransactionForm
           actions={actions}
+          automationRules={data.automationRules}
           categories={data.categories}
           cards={data.cards}
           editingTransaction={editingTransaction}

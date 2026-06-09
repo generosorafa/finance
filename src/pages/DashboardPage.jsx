@@ -204,6 +204,7 @@ export function DashboardPage({ data, actions, paymentMethods, currentMonth, cur
             </div>
             <TransactionForm
               actions={actions}
+              automationRules={data.automationRules}
               categories={data.categories}
               cards={data.cards}
               onSaved={() => setQuickEntryOpen(false)}

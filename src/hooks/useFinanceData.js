@@ -22,6 +22,7 @@ const EMPTY_DATA = {
   debts: [],
   allocations: [],
   monthlyClosings: [],
+  automationRules: [],
   settings: {},
 };
 
