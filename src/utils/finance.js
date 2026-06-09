@@ -297,6 +297,47 @@ export function smartCashSummary(data, monthIndex, year) {
   };
 }
 
+export function monthlyProjection(data, monthIndex, year, referenceDate = new Date()) {
+  const summary = summarizeMonth(data, monthIndex, year);
+  const cash = smartCashSummary(data, monthIndex, year);
+  const variableEntries = variableExpenseEntriesForProjection(data, monthIndex, year);
+  const variableSpent = variableEntries.reduce((sum, item) => sum + Number(item.amount || 0), 0);
+  const totalDays = daysInMonth(year, monthIndex);
+  const elapsedDays = elapsedDaysInMonth(year, monthIndex, referenceDate);
+  const remainingDays = Math.max(0, totalDays - elapsedDays);
+  const averageDailyVariable = elapsedDays > 0 ? variableSpent / elapsedDays : 0;
+  const projectedVariableTotal = elapsedDays > 0
+    ? Math.max(variableSpent, averageDailyVariable * totalDays)
+    : variableSpent;
+  const projectedVariableRemaining = Math.max(0, projectedVariableTotal - variableSpent);
+  const actualExpenses = summary.despesas + summary.parcelas;
+  const committedRecordedExpenses = Math.max(0, actualExpenses - variableSpent);
+  const projectedExpenses = committedRecordedExpenses + projectedVariableTotal + cash.pendingFixedTotal;
+  const projectedResult = summary.receitas - projectedExpenses;
+  const projectedCashEnd = cash.freeEstimated - projectedVariableRemaining;
+
+  return {
+    month: monthKeyFromParts(year, monthIndex),
+    totalDays,
+    elapsedDays,
+    remainingDays,
+    actualIncome: summary.receitas,
+    actualExpenses,
+    variableSpent,
+    variableEntryCount: variableEntries.length,
+    averageDailyVariable,
+    projectedVariableTotal,
+    projectedVariableRemaining,
+    pendingFixedTotal: cash.pendingFixedTotal,
+    openInvoiceTotal: cash.openInvoiceTotal,
+    projectedExpenses,
+    projectedResult,
+    projectedCashEnd,
+    confidence: elapsedDays >= 10 ? 'alta' : elapsedDays >= 5 ? 'media' : 'baixa',
+    status: projectedCashEnd < 0 ? 'risk' : projectedResult < 0 ? 'attention' : 'ok',
+  };
+}
+
 export function cardInvoiceSummaries(data, monthIndex, year) {
   const invoiceMonth = monthKeyFromParts(year, monthIndex);
   const summary = summarizeMonth(data, monthIndex, year);
@@ -654,6 +695,25 @@ function formatCsvCurrency(value) {
 
 function daysInMonth(year, monthIndex) {
   return new Date(year, monthIndex + 1, 0).getDate();
+}
+
+function elapsedDaysInMonth(year, monthIndex, referenceDate) {
+  const reference = typeof referenceDate === 'string' ? new Date(`${referenceDate}T12:00:00`) : referenceDate;
+  const targetMonth = monthKeyFromParts(year, monthIndex);
+  const referenceMonth = monthKey(reference);
+  const totalDays = daysInMonth(year, monthIndex);
+
+  if (targetMonth < referenceMonth) return totalDays;
+  if (targetMonth > referenceMonth) return 0;
+  return Math.min(Math.max(reference.getDate(), 1), totalDays);
+}
+
+function variableExpenseEntriesForProjection(data, monthIndex, year) {
+  return monthlyLedgerEntries(data, monthIndex, year)
+    .filter((item) => item.type === 'despesa')
+    .filter((item) => !['fixed-item', 'installment'].includes(item.source))
+    .filter((item) => !['fixo', 'assinatura', 'parcelamento'].includes(item.nature))
+    .filter((item) => !getCategory(data.categories || [], item.category).special);
 }
 
 function allocationTotalForMonth(data, type, monthIndex, year) {

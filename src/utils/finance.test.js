@@ -15,6 +15,7 @@ import {
   installmentsForMonth,
   monthlyLedgerEntries,
   monthlyClosingInsights,
+  monthlyProjection,
   smartCashSummary,
   targetAllocations,
   transactionForFixedItemMonth,
@@ -253,6 +254,47 @@ test('smartCashSummary estimates free cash after open invoices and pending fixed
   assert.equal(cash.reservedTotal, 300);
   assert.equal(cash.reservedAllocated, 100);
   assert.equal(cash.reservedAvailable, 200);
+});
+
+test('monthlyProjection estimates end of month result from variable spending pace', () => {
+  const data = {
+    settings: {},
+    wallet: [
+      { id: 'w_income', type: 'entrada', amount: 3000 },
+      { id: 'w_rent', type: 'saida', amount: 1000 },
+      { id: 'w_market', type: 'saida', amount: 300 },
+    ],
+    categories: [
+      { id: 'cat_food', name: 'Alimentacao' },
+      { id: 'cat_home', name: 'Casa' },
+      { id: 'cat_goals', name: 'Metas', special: 'goals' },
+    ],
+    transactions: [
+      { id: 'income', type: 'receita', category: 'cat_income', amount: 3000, date: '2026-06-01' },
+      { id: 'rent', type: 'despesa', category: 'cat_home', amount: 1000, date: '2026-06-05', source: 'fixed-item', fixedItemId: 'rent', fixedMonth: '2026-06' },
+      { id: 'market', type: 'despesa', category: 'cat_food', amount: 300, payment: 'PIX', date: '2026-06-05' },
+      { id: 'card', type: 'despesa', category: 'cat_food', amount: 200, payment: 'CC::card_1', date: '2026-06-08' },
+      { id: 'goal_cash', type: 'despesa', category: 'cat_goals', amount: 150, payment: 'PIX', date: '2026-06-09' },
+    ],
+    installments: [{ id: 'inst', firstMonth: '2026-06', parcels: 2, parcelValue: 100, categoryId: 'cat_food', cardId: 'card_1' }],
+    fixedItems: [
+      { id: 'rent', name: 'Aluguel', amount: 1000, dueDay: 5, active: true, startMonth: '2026-01', payment: 'PIX' },
+      { id: 'internet', name: 'Internet', amount: 200, dueDay: 20, active: true, startMonth: '2026-01', payment: 'PIX' },
+    ],
+    cards: [{ id: 'card_1', name: 'Visa', closeDay: 10, dueDay: 20 }],
+    allocations: [],
+  };
+  const projection = monthlyProjection(data, 5, 2026, '2026-06-10');
+
+  assert.equal(projection.elapsedDays, 10);
+  assert.equal(projection.remainingDays, 20);
+  assert.equal(projection.variableSpent, 500);
+  assert.equal(projection.averageDailyVariable, 50);
+  assert.equal(projection.projectedVariableRemaining, 1000);
+  assert.equal(projection.pendingFixedTotal, 200);
+  assert.equal(projection.projectedExpenses, 2950);
+  assert.equal(projection.projectedResult, 50);
+  assert.equal(projection.projectedCashEnd, 200);
 });
 
 test('allocationCashSummary uses special category transactions as cash source', () => {

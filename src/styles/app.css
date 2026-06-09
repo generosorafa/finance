@@ -712,6 +712,67 @@ select:focus {
   font-size: 0.95rem;
 }
 
+.projection-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.projection-card {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface-2);
+}
+
+.projection-card span,
+.projection-meter span,
+.projection-details span {
+  color: var(--muted);
+  font-size: 0.82rem;
+}
+
+.projection-card strong {
+  font-size: 1.08rem;
+}
+
+.projection-card.positive strong {
+  color: var(--positive);
+}
+
+.projection-card.negative strong {
+  color: var(--negative);
+}
+
+.projection-card.info strong {
+  color: var(--info);
+}
+
+.projection-meter {
+  display: grid;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.projection-meter > div:first-child,
+.projection-details {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.projection-details {
+  margin-top: 12px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface-2);
+}
+
 .bar-label {
   display: flex;
   justify-content: space-between;
@@ -1182,7 +1243,8 @@ select:focus {
   .closing-cash-grid,
   .cash-metrics,
   .cash-flow-grid,
-  .reserve-grid {
+  .reserve-grid,
+  .projection-grid {
     grid-template-columns: 1fr;
   }
 

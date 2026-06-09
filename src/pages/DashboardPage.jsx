@@ -8,6 +8,7 @@ import {
   categorySpendingForMonth,
   fixedItemsForMonth,
   formatCurrency,
+  monthlyProjection,
   monthlyLedgerEntries,
   summarizeMonth,
   transactionForFixedItemMonth,
@@ -19,6 +20,7 @@ export function DashboardPage({ data, actions, paymentMethods, currentMonth, cur
   const [selectedChartMonth, setSelectedChartMonth] = useState(currentMonth);
   const summary = summarizeMonth(data, currentMonth, currentYear);
   const balance = walletBalance(data);
+  const projection = monthlyProjection(data, currentMonth, currentYear);
   const ledgerEntries = monthlyLedgerEntries(data, currentMonth, currentYear);
   const recent = [...ledgerEntries].sort((a, b) => (b.sortDate || '').localeCompare(a.sortDate || '')).slice(0, 6);
   const yearlyTotals = Array.from({ length: 12 }, (_, monthIndex) => {
@@ -58,6 +60,39 @@ export function DashboardPage({ data, actions, paymentMethods, currentMonth, cur
           <Plus size={17} /> Lancar transacao
         </button>
       </div>
+
+      <section className="panel span-2">
+        <div className="panel-header">
+          <div>
+            <h2>Projecao do mes</h2>
+            <p>Estimativa com base no ritmo de gastos variaveis e compromissos ainda pendentes.</p>
+          </div>
+          <span className={`pill ${projection.status === 'risk' ? 'warning' : projection.status === 'attention' ? 'muted' : 'positive'}`}>
+            {projection.status === 'risk' ? 'Risco de faltar caixa' : projection.status === 'attention' ? 'Resultado apertado' : 'Caminho saudavel'}
+          </span>
+        </div>
+        <div className="projection-grid">
+          <ProjectionCard label="Resultado projetado" value={projection.projectedResult} tone={projection.projectedResult >= 0 ? 'positive' : 'negative'} />
+          <ProjectionCard label="Caixa livre final" value={projection.projectedCashEnd} tone={projection.projectedCashEnd >= 0 ? 'positive' : 'negative'} />
+          <ProjectionCard label="Ritmo variavel/dia" value={projection.averageDailyVariable} tone="info" />
+          <ProjectionCard label="Variavel restante" value={projection.projectedVariableRemaining} tone="negative" />
+        </div>
+        <div className="projection-meter">
+          <div>
+            <span>Dia {projection.elapsedDays || 0} de {projection.totalDays}</span>
+            <strong>Confianca {projection.confidence}</strong>
+          </div>
+          <div className="meter">
+            <span style={{ width: `${Math.min(100, (projection.elapsedDays / projection.totalDays) * 100)}%` }} />
+          </div>
+        </div>
+        <div className="projection-details">
+          <span>Receitas atuais {formatCurrency(projection.actualIncome)}</span>
+          <span>Despesas projetadas {formatCurrency(projection.projectedExpenses)}</span>
+          <span>Faturas abertas {formatCurrency(projection.openInvoiceTotal)}</span>
+          <span>Fixos pendentes {formatCurrency(projection.pendingFixedTotal)}</span>
+        </div>
+      </section>
 
       <section className="panel span-2">
         <div className="panel-header">
@@ -149,6 +184,15 @@ export function DashboardPage({ data, actions, paymentMethods, currentMonth, cur
           </section>
         </div>
       )}
+    </div>
+  );
+}
+
+function ProjectionCard({ label, value, tone }) {
+  return (
+    <div className={`projection-card ${tone}`}>
+      <span>{label}</span>
+      <strong>{formatCurrency(value)}</strong>
     </div>
   );
 }
