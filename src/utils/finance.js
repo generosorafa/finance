@@ -847,7 +847,7 @@ function severityRank(severity) {
   return 1;
 }
 
-function normalizeText(text) {
+export function normalizeText(text) {
   return String(text || '')
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '')

@@ -1131,6 +1131,39 @@ select:focus {
   gap: 10px;
 }
 
+.data-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.import-box,
+.import-review {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface-2);
+  padding: 12px;
+}
+
+.import-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.import-stats span {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--muted);
+  padding: 9px 11px;
+}
+
+.import-stats strong {
+  color: var(--text);
+}
+
 .key-list {
   display: grid;
   gap: 10px;

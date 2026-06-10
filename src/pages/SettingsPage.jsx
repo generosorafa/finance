@@ -1,10 +1,16 @@
 import { useEffect, useState } from 'react';
-import { Check, Plus, Trash2 } from 'lucide-react';
-import { Field, paymentLabel } from '../components/ui.jsx';
-import { makeId } from '../utils/finance.js';
+import { Check, Download, FileText, Plus, Trash2, Upload } from 'lucide-react';
+import { EmptyState, Field, paymentLabel } from '../components/ui.jsx';
+import { downloadText } from '../utils/download.js';
+import { buildFinanceBackup, prepareTransactionImport } from '../utils/importExport.js';
+import { exportTransactionsCsv, formatCurrency, makeId, today } from '../utils/finance.js';
 
 export function SettingsPage({ data, actions, paymentMethods }) {
   const [newMethod, setNewMethod] = useState('');
+  const [importResult, setImportResult] = useState(null);
+  const [importFileName, setImportFileName] = useState('');
+  const [importing, setImporting] = useState(false);
+  const [importMessage, setImportMessage] = useState('');
   const [rule, setRule] = useState({
     name: '',
     matchText: '',
@@ -59,8 +65,125 @@ export function SettingsPage({ data, actions, paymentMethods }) {
     await actions.remove('automationRules', item.id);
   }
 
+  function exportBackup() {
+    const backup = buildFinanceBackup(data);
+    downloadText(`finance-backup-${today()}.json`, JSON.stringify(backup, null, 2), 'application/json;charset=utf-8');
+  }
+
+  function exportTransactions() {
+    const csv = exportTransactionsCsv(data.transactions, data.categories);
+    downloadText(`finance-transacoes-${today()}.csv`, `\uFEFF${csv}`, 'text/csv;charset=utf-8');
+  }
+
+  function downloadTemplate() {
+    const csv = [
+      'Data;Descricao;Tipo;Categoria;Pagamento;Valor;Observacao',
+      '2026-06-10;Mercado;Despesa;Alimentacao;PIX;123,45;Compra semanal',
+      '2026-06-10;Salario;Receita;Salario / Receita;Transferencia;3000,00;',
+    ].join('\r\n');
+    downloadText('modelo-importacao-transacoes.csv', `\uFEFF${csv}`, 'text/csv;charset=utf-8');
+  }
+
+  async function previewImport(event) {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const text = await file.text();
+    const result = prepareTransactionImport(text, {
+      categories: data.categories,
+      paymentMethods,
+      cards: data.cards,
+      automationRules: data.automationRules,
+      existingTransactions: data.transactions,
+    });
+
+    setImportFileName(file.name);
+    setImportResult(result);
+    setImportMessage('');
+    event.target.value = '';
+  }
+
+  async function saveImportedTransactions() {
+    if (!importResult?.items.length) return;
+
+    setImporting(true);
+    setImportMessage('');
+    try {
+      for (const item of importResult.items) {
+        await actions.saveTransaction(item);
+      }
+      setImportMessage(`${importResult.items.length} transacao(oes) importada(s).`);
+      setImportResult(null);
+      setImportFileName('');
+    } catch (error) {
+      setImportMessage(error.message || 'Nao foi possivel importar as transacoes.');
+    } finally {
+      setImporting(false);
+    }
+  }
+
   return (
     <div className="content-grid">
+      <section className="panel span-2">
+        <div className="panel-header">
+          <div>
+            <h2>Dados e backup</h2>
+            <p>Exporte seus dados e importe transacoes por CSV com revisao antes de salvar.</p>
+          </div>
+        </div>
+        <div className="data-actions">
+          <button className="primary-button" onClick={exportBackup} type="button"><Download size={17} /> Backup JSON</button>
+          <button className="secondary-button" onClick={exportTransactions} type="button"><FileText size={17} /> Transacoes CSV</button>
+          <button className="secondary-button" onClick={downloadTemplate} type="button"><Download size={17} /> Modelo CSV</button>
+        </div>
+        <div className="import-box spacing-top">
+          <Field label="Importar CSV de transacoes">
+            <input accept=".csv,text/csv" onChange={previewImport} type="file" />
+          </Field>
+          <p>Use colunas como Data, Descricao, Tipo, Categoria, Pagamento, Valor e Observacao. Regras automaticas tambem sao aplicadas na importacao.</p>
+        </div>
+        {importMessage && <div className="notice compact spacing-top">{importMessage}</div>}
+        {importResult && (
+          <div className="import-review spacing-top">
+            <div className="panel-header compact-header">
+              <div>
+                <h2>Revisao da importacao</h2>
+                <p>{importFileName} · {importResult.totalRows} linha(s) lida(s)</p>
+              </div>
+              <button className="primary-button" disabled={!importResult.items.length || importing} onClick={saveImportedTransactions} type="button">
+                <Upload size={17} /> Importar {importResult.items.length}
+              </button>
+            </div>
+            <div className="import-stats">
+              <span><strong>{importResult.items.length}</strong> prontas</span>
+              <span><strong>{importResult.duplicates.length}</strong> duplicadas</span>
+              <span><strong>{importResult.rejected.length}</strong> recusadas</span>
+            </div>
+            <div className="list spacing-top">
+              {importResult.items.slice(0, 8).map((item) => (
+                <div className="list-row" key={item.id}>
+                  <div className="row-main">
+                    <strong>{item.date} · {item.desc}</strong>
+                    <span>{item.type === 'receita' ? 'Receita' : 'Despesa'} · {categoryName(data.categories, item.category)} · {paymentLabel(item.payment, data.cards)}</span>
+                  </div>
+                  <strong className={item.type === 'receita' ? 'money-positive' : 'money-negative'}>{formatCurrency(item.amount)}</strong>
+                </div>
+              ))}
+              {!importResult.items.length && <EmptyState title="Nenhuma transacao pronta para importar." />}
+            </div>
+            {(importResult.duplicates.length > 0 || importResult.rejected.length > 0) && (
+              <div className="key-list spacing-top">
+                {importResult.duplicates.slice(0, 3).map((item) => (
+                  <span key={`duplicate_${item.rowNumber}`}>Linha {item.rowNumber}: possivel duplicada de {item.item.desc}</span>
+                ))}
+                {importResult.rejected.slice(0, 3).map((item) => (
+                  <span key={`rejected_${item.rowNumber}`}>Linha {item.rowNumber}: {item.reason}</span>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+      </section>
       <section className="panel">
         <div className="panel-header">
           <div>
