@@ -2,11 +2,18 @@ import { useEffect, useState } from 'react';
 import { Check, Download, FileText, Plus, Trash2, Upload } from 'lucide-react';
 import { EmptyState, Field, paymentLabel } from '../components/ui.jsx';
 import { downloadText } from '../utils/download.js';
-import { buildFinanceBackup, prepareTransactionImport } from '../utils/importExport.js';
+import {
+  TRANSACTION_COLUMN_FIELDS,
+  buildFinanceBackup,
+  parseCsv,
+  prepareTransactionImport,
+  suggestTransactionColumnMap,
+} from '../utils/importExport.js';
 import { exportTransactionsCsv, formatCurrency, makeId, today } from '../utils/finance.js';
 
 export function SettingsPage({ data, actions, paymentMethods }) {
   const [newMethod, setNewMethod] = useState('');
+  const [importDraft, setImportDraft] = useState(null);
   const [importResult, setImportResult] = useState(null);
   const [importFileName, setImportFileName] = useState('');
   const [importing, setImporting] = useState(false);
@@ -89,18 +96,51 @@ export function SettingsPage({ data, actions, paymentMethods }) {
     if (!file) return;
 
     const text = await file.text();
-    const result = prepareTransactionImport(text, {
+    const rows = parseCsv(text);
+    if (!rows.length) {
+      setImportDraft(null);
+      setImportResult(null);
+      setImportMessage('Arquivo vazio ou sem linhas validas.');
+      event.target.value = '';
+      return;
+    }
+
+    const headers = rows[0];
+    setImportDraft({
+      fileName: file.name,
+      text,
+      headers,
+      totalRows: Math.max(0, rows.length - 1),
+      columnMap: suggestTransactionColumnMap(headers),
+    });
+    setImportFileName(file.name);
+    setImportResult(null);
+    setImportMessage('');
+    event.target.value = '';
+  }
+
+  function updateColumnMapping(fieldId, value) {
+    setImportDraft((current) => current
+      ? { ...current, columnMap: { ...current.columnMap, [fieldId]: value } }
+      : current);
+    setImportResult(null);
+  }
+
+  function buildImportPreview() {
+    if (!importDraft) return;
+
+    const result = prepareTransactionImport(importDraft.text, {
       categories: data.categories,
       paymentMethods,
       cards: data.cards,
       automationRules: data.automationRules,
       existingTransactions: data.transactions,
+      columnMap: importDraft.columnMap,
     });
 
-    setImportFileName(file.name);
+    setImportFileName(importDraft.fileName);
     setImportResult(result);
     setImportMessage('');
-    event.target.value = '';
   }
 
   async function saveImportedTransactions() {
@@ -114,6 +154,7 @@ export function SettingsPage({ data, actions, paymentMethods }) {
       }
       setImportMessage(`${importResult.items.length} transacao(oes) importada(s).`);
       setImportResult(null);
+      setImportDraft(null);
       setImportFileName('');
     } catch (error) {
       setImportMessage(error.message || 'Nao foi possivel importar as transacoes.');
@@ -121,6 +162,17 @@ export function SettingsPage({ data, actions, paymentMethods }) {
       setImporting(false);
     }
   }
+
+  const selectedImportColumns = importDraft
+    ? Object.values(importDraft.columnMap).filter((value) => value !== '' && value !== undefined)
+    : [];
+  const repeatedImportColumns = selectedImportColumns.length !== new Set(selectedImportColumns).size;
+  const missingImportFields = importDraft
+    ? TRANSACTION_COLUMN_FIELDS
+      .filter((field) => field.required && !importDraft.columnMap[field.id])
+      .map((field) => field.label)
+    : [];
+  const canReviewImport = !!importDraft && !missingImportFields.length && !repeatedImportColumns;
 
   return (
     <div className="content-grid">
@@ -140,8 +192,41 @@ export function SettingsPage({ data, actions, paymentMethods }) {
           <Field label="Importar CSV de transacoes">
             <input accept=".csv,text/csv" onChange={previewImport} type="file" />
           </Field>
-          <p>Use colunas como Data, Descricao, Tipo, Categoria, Pagamento, Valor e Observacao. Regras automaticas tambem sao aplicadas na importacao.</p>
+          <p>Depois de escolher o arquivo, confira qual coluna vira Data, Descricao, Valor e demais campos.</p>
         </div>
+        {importDraft && (
+          <div className="column-map spacing-top">
+            <div className="panel-header compact-header">
+              <div>
+                <h2>Mapear colunas</h2>
+                <p>{importDraft.fileName} · {importDraft.totalRows} linha(s) encontrada(s)</p>
+              </div>
+              <button className="primary-button" disabled={!canReviewImport} onClick={buildImportPreview} type="button">
+                <FileText size={17} /> Revisar importacao
+              </button>
+            </div>
+            <div className="mapping-grid spacing-top">
+              {TRANSACTION_COLUMN_FIELDS.map((field) => (
+                <Field label={`${field.label}${field.required ? ' *' : ''}`} key={field.id}>
+                  <select value={importDraft.columnMap[field.id] ?? ''} onChange={(event) => updateColumnMapping(field.id, event.target.value)}>
+                    <option value="">Nao importar</option>
+                    {importDraft.headers.map((header, index) => (
+                      <option key={`${field.id}_${index}`} value={String(index)}>
+                        Coluna {index + 1}: {header || 'Sem nome'}
+                      </option>
+                    ))}
+                  </select>
+                </Field>
+              ))}
+            </div>
+            {!!missingImportFields.length && (
+              <div className="notice compact error spacing-top">Mapeie os campos obrigatorios: {missingImportFields.join(', ')}.</div>
+            )}
+            {repeatedImportColumns && (
+              <div className="notice compact error spacing-top">Cada campo precisa apontar para uma coluna diferente.</div>
+            )}
+          </div>
+        )}
         {importMessage && <div className="notice compact spacing-top">{importMessage}</div>}
         {importResult && (
           <div className="import-review spacing-top">

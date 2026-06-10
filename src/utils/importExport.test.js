@@ -4,6 +4,7 @@ import {
   buildFinanceBackup,
   parseCsv,
   prepareTransactionImport,
+  suggestTransactionColumnMap,
 } from './importExport.js';
 
 test('buildFinanceBackup stores settings and array collections', () => {
@@ -90,4 +91,35 @@ test('prepareTransactionImport reports missing required headers', () => {
   assert.equal(result.items.length, 0);
   assert.equal(result.rejected.length, 1);
   assert.match(result.rejected[0].reason, /data/);
+});
+
+test('prepareTransactionImport respects explicit column mapping', () => {
+  const csv = 'Quando;Memo;Dinheiro\n11/06/2026;Padaria;18,50';
+  const result = prepareTransactionImport(csv, {
+    categories: [{ id: 'cat_alim', name: 'Alimentacao' }],
+    paymentMethods: ['PIX'],
+    columnMap: {
+      data: '0',
+      descricao: '1',
+      valor: '2',
+      categoria: '',
+      pagamento: '',
+    },
+    now: 100,
+  });
+
+  assert.equal(result.items.length, 1);
+  assert.equal(result.items[0].date, '2026-06-11');
+  assert.equal(result.items[0].desc, 'Padaria');
+  assert.equal(result.items[0].amount, 18.5);
+  assert.equal(result.items[0].category, 'cat_alim');
+});
+
+test('suggestTransactionColumnMap identifies known transaction headers', () => {
+  assert.deepEqual(suggestTransactionColumnMap(['Data', 'Descricao', 'Valor', 'Categoria']), {
+    data: '0',
+    descricao: '1',
+    valor: '2',
+    categoria: '3',
+  });
 });

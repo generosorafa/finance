@@ -1137,12 +1137,19 @@ select:focus {
   gap: 10px;
 }
 
+.column-map,
 .import-box,
 .import-review {
   border: 1px solid var(--line);
   border-radius: 8px;
   background: var(--surface-2);
   padding: 12px;
+}
+
+.mapping-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
 }
 
 .import-stats {
@@ -1265,7 +1272,8 @@ select:focus {
   .card-grid,
   .chip-grid,
   .form-grid,
-  .form-grid.compact {
+  .form-grid.compact,
+  .mapping-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
@@ -1330,6 +1338,7 @@ select:focus {
   .closing-cash-grid,
   .cash-metrics,
   .cash-flow-grid,
+  .mapping-grid,
   .reserve-grid,
   .projection-grid {
     grid-template-columns: 1fr;

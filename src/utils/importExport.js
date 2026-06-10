@@ -7,7 +7,20 @@ import {
   normalizeText,
 } from './finance.js';
 
-const TRANSACTION_REQUIRED_HEADERS = ['data', 'descricao', 'valor'];
+export const TRANSACTION_COLUMN_FIELDS = [
+  { id: 'data', label: 'Data', required: true },
+  { id: 'descricao', label: 'Descricao', required: true },
+  { id: 'valor', label: 'Valor', required: true },
+  { id: 'tipo', label: 'Tipo', required: false },
+  { id: 'categoria', label: 'Categoria', required: false },
+  { id: 'pagamento', label: 'Pagamento', required: false },
+  { id: 'necessidade', label: 'Necessidade', required: false },
+  { id: 'observacao', label: 'Observacao', required: false },
+];
+
+const TRANSACTION_REQUIRED_HEADERS = TRANSACTION_COLUMN_FIELDS
+  .filter((field) => field.required)
+  .map((field) => field.id);
 
 export function buildFinanceBackup(data, exportedAt = new Date().toISOString()) {
   const { settings = {}, ...collections } = data || {};
@@ -31,6 +44,7 @@ export function prepareTransactionImport(csvText, {
   cards = [],
   automationRules = [],
   existingTransactions = [],
+  columnMap = null,
   now = Date.now(),
 } = {}) {
   const rows = parseCsv(csvText);
@@ -38,7 +52,9 @@ export function prepareTransactionImport(csvText, {
     return { items: [], rejected: [], duplicates: [], headers: [], totalRows: 0 };
   }
 
-  const headers = rows[0].map(normalizeHeader);
+  const headers = columnMap
+    ? headersFromColumnMap(rows[0], columnMap)
+    : rows[0].map(normalizeHeader);
   const missing = TRANSACTION_REQUIRED_HEADERS.filter((header) => !headers.includes(header));
   if (missing.length) {
     return {
@@ -139,6 +155,17 @@ export function parseCsv(text) {
     .filter((item) => item.some((cellValue) => cellValue));
 }
 
+export function suggestTransactionColumnMap(headers) {
+  return (headers || []).reduce((mapping, header, index) => {
+    const normalized = normalizeHeader(header);
+    const field = TRANSACTION_COLUMN_FIELDS.find((item) => item.id === normalized);
+    if (field && mapping[field.id] === undefined) {
+      return { ...mapping, [field.id]: String(index) };
+    }
+    return mapping;
+  }, {});
+}
+
 function transactionFromImportRecord(record, context) {
   const desc = stringValue(record.descricao || record.description);
   const date = parseImportDate(record.data || record.date);
@@ -179,6 +206,20 @@ function transactionFromImportRecord(record, context) {
       invoiceMonth: linkedCardId ? getCardInvoiceMonth(card, itemWithRule.date) : '',
     },
   };
+}
+
+function headersFromColumnMap(sourceHeaders, columnMap) {
+  const headers = sourceHeaders.map((_, index) => `__ignore_${index}`);
+
+  Object.entries(columnMap || {}).forEach(([fieldId, rawIndex]) => {
+    if (rawIndex === '' || rawIndex === null || rawIndex === undefined) return;
+    const index = Number(rawIndex);
+    if (Number.isInteger(index) && index >= 0 && index < headers.length) {
+      headers[index] = fieldId;
+    }
+  });
+
+  return headers;
 }
 
 function detectDelimiter(text) {
