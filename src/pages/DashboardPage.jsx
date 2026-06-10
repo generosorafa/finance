@@ -66,65 +66,6 @@ export function DashboardPage({ data, actions, paymentMethods, currentMonth, cur
       <section className="panel span-2">
         <div className="panel-header">
           <div>
-            <h2>Projecao do mes</h2>
-            <p>Estimativa com base no ritmo de gastos variaveis e compromissos ainda pendentes.</p>
-          </div>
-          <span className={`pill ${projection.status === 'risk' ? 'warning' : projection.status === 'attention' ? 'muted' : 'positive'}`}>
-            {projection.status === 'risk' ? 'Risco de faltar caixa' : projection.status === 'attention' ? 'Resultado apertado' : 'Caminho saudavel'}
-          </span>
-        </div>
-        <div className="projection-grid">
-          <ProjectionCard label="Resultado projetado" value={projection.projectedResult} tone={projection.projectedResult >= 0 ? 'positive' : 'negative'} />
-          <ProjectionCard label="Caixa livre final" value={projection.projectedCashEnd} tone={projection.projectedCashEnd >= 0 ? 'positive' : 'negative'} />
-          <ProjectionCard label="Ritmo variavel/dia" value={projection.averageDailyVariable} tone="info" />
-          <ProjectionCard label="Variavel restante" value={projection.projectedVariableRemaining} tone="negative" />
-        </div>
-        <div className="projection-meter">
-          <div>
-            <span>Dia {projection.elapsedDays || 0} de {projection.totalDays}</span>
-            <strong>Confianca {projection.confidence}</strong>
-          </div>
-          <div className="meter">
-            <span style={{ width: `${Math.min(100, (projection.elapsedDays / projection.totalDays) * 100)}%` }} />
-          </div>
-        </div>
-        <div className="projection-details">
-          <span>Receitas atuais {formatCurrency(projection.actualIncome)}</span>
-          <span>Despesas projetadas {formatCurrency(projection.projectedExpenses)}</span>
-          <span>Faturas abertas {formatCurrency(projection.openInvoiceTotal)}</span>
-          <span>Fixos pendentes {formatCurrency(projection.pendingFixedTotal)}</span>
-        </div>
-      </section>
-
-      <section className="panel span-2">
-        <div className="panel-header">
-          <div>
-            <h2>Alertas e pendencias</h2>
-            <p>Prioridades do mes para evitar sustos no fechamento.</p>
-          </div>
-          <span className={`pill ${alerts.some((item) => item.severity === 'high') ? 'warning' : alerts.length ? 'muted' : 'positive'}`}>
-            {alerts.length ? `${alerts.length} ponto(s)` : 'Tudo certo'}
-          </span>
-        </div>
-        <div className="alert-list">
-          {alerts.slice(0, 6).map((item) => (
-            <div className={`alert-row ${item.severity}`} key={item.id}>
-              {item.severity === 'high' ? <AlertTriangle size={19} /> : <Info size={19} />}
-              <div className="row-main">
-                <strong>{item.title}</strong>
-                <span>{alertDetail(item)}</span>
-              </div>
-              {!!item.amount && <strong className={item.severity === 'high' ? 'money-negative' : ''}>{formatCurrency(item.amount)}</strong>}
-              {item.page !== 'dashboard' && <button className="text-button" onClick={() => setPage(item.page)} type="button">Abrir</button>}
-            </div>
-          ))}
-          {!alerts.length && <EmptyState title="Nenhuma pendencia importante neste mes." />}
-        </div>
-      </section>
-
-      <section className="panel span-2">
-        <div className="panel-header">
-          <div>
             <h2>Receitas x despesas em {currentYear}</h2>
             <p>Comparativo mensal com parcelas consideradas nas despesas.</p>
           </div>
@@ -187,6 +128,65 @@ export function DashboardPage({ data, actions, paymentMethods, currentMonth, cur
             </div>
           ))}
           {!pendingFixed.length && <EmptyState title="Nada pendente em fixos e assinaturas." />}
+        </div>
+      </section>
+
+      <section className="panel span-2">
+        <div className="panel-header">
+          <div>
+            <h2>Projecao do mes</h2>
+            <p>Estimativa com base no ritmo de gastos variaveis e compromissos ainda pendentes.</p>
+          </div>
+          <span className={`pill ${projection.status === 'risk' ? 'warning' : projection.status === 'attention' ? 'muted' : 'positive'}`}>
+            {projection.status === 'risk' ? 'Risco de faltar caixa' : projection.status === 'attention' ? 'Resultado apertado' : 'Caminho saudavel'}
+          </span>
+        </div>
+        <div className="projection-grid">
+          <ProjectionCard label="Resultado projetado" value={projection.projectedResult} tone={projection.projectedResult >= 0 ? 'positive' : 'negative'} />
+          <ProjectionCard label="Caixa livre final" value={projection.projectedCashEnd} tone={projection.projectedCashEnd >= 0 ? 'positive' : 'negative'} />
+          <ProjectionCard label="Ritmo variavel/dia" value={projection.averageDailyVariable} tone="info" />
+          <ProjectionCard label="Variavel restante" value={projection.projectedVariableRemaining} tone="negative" />
+        </div>
+        <div className="projection-meter">
+          <div>
+            <span>Dia {projection.elapsedDays || 0} de {projection.totalDays}</span>
+            <strong>Confianca {projection.confidence}</strong>
+          </div>
+          <div className="meter">
+            <span style={{ width: `${Math.min(100, (projection.elapsedDays / projection.totalDays) * 100)}%` }} />
+          </div>
+        </div>
+        <div className="projection-details">
+          <span>Receitas atuais {formatCurrency(projection.actualIncome)}</span>
+          <span>Despesas projetadas {formatCurrency(projection.projectedExpenses)}</span>
+          <span>Faturas abertas {formatCurrency(projection.openInvoiceTotal)}</span>
+          <span>Fixos pendentes {formatCurrency(projection.pendingFixedTotal)}</span>
+        </div>
+      </section>
+
+      <section className="panel span-2">
+        <div className="panel-header">
+          <div>
+            <h2>Alertas e pendencias</h2>
+            <p>Prioridades do mes para evitar sustos no fechamento.</p>
+          </div>
+          <span className={`pill ${alerts.some((item) => item.severity === 'high') ? 'warning' : alerts.length ? 'muted' : 'positive'}`}>
+            {alerts.length ? `${alerts.length} ponto(s)` : 'Tudo certo'}
+          </span>
+        </div>
+        <div className="alert-list">
+          {alerts.slice(0, 6).map((item) => (
+            <div className={`alert-row ${item.severity}`} key={item.id}>
+              {item.severity === 'high' ? <AlertTriangle size={19} /> : <Info size={19} />}
+              <div className="row-main">
+                <strong>{item.title}</strong>
+                <span>{alertDetail(item)}</span>
+              </div>
+              {!!item.amount && <strong className={item.severity === 'high' ? 'money-negative' : ''}>{formatCurrency(item.amount)}</strong>}
+              {item.page !== 'dashboard' && <button className="text-button" onClick={() => setPage(item.page)} type="button">Abrir</button>}
+            </div>
+          ))}
+          {!alerts.length && <EmptyState title="Nenhuma pendencia importante neste mes." />}
         </div>
       </section>
 
