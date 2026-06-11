@@ -35,6 +35,7 @@ export const COLLECTIONS = [
   'allocations',
   'monthlyClosings',
   'automationRules',
+  'importTemplates',
 ];
 
 export const SPECIAL_CATEGORIES = {

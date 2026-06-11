@@ -5,7 +5,9 @@ import { COLLECTIONS } from '../data/defaults.js';
 import { downloadText } from '../utils/download.js';
 import {
   TRANSACTION_COLUMN_FIELDS,
+  applyTransactionImportTemplate,
   buildFinanceBackup,
+  buildTransactionImportTemplate,
   parseCsv,
   prepareBackupRestore,
   prepareTransactionImport,
@@ -22,6 +24,8 @@ export function SettingsPage({ data, actions, paymentMethods }) {
   const [importFileName, setImportFileName] = useState('');
   const [importing, setImporting] = useState(false);
   const [importMessage, setImportMessage] = useState('');
+  const [selectedTemplateId, setSelectedTemplateId] = useState('');
+  const [templateName, setTemplateName] = useState('');
   const [restorePreview, setRestorePreview] = useState(null);
   const [restoreMode, setRestoreMode] = useState('merge');
   const [restoreConfirm, setRestoreConfirm] = useState('');
@@ -198,6 +202,8 @@ export function SettingsPage({ data, actions, paymentMethods }) {
     });
     setImportFileName(file.name);
     setImportResult(null);
+    setSelectedTemplateId('');
+    setTemplateName('');
     setImportMessage('');
     event.target.value = '';
   }
@@ -207,6 +213,46 @@ export function SettingsPage({ data, actions, paymentMethods }) {
       ? { ...current, columnMap: { ...current.columnMap, [fieldId]: value } }
       : current);
     setImportResult(null);
+  }
+
+  function applyImportTemplate(templateId) {
+    if (!templateId) {
+      setSelectedTemplateId('');
+      return;
+    }
+
+    const template = data.importTemplates.find((item) => item.id === templateId);
+    if (!template || !importDraft) return;
+
+    setImportDraft((current) => current
+      ? {
+        ...current,
+        columnMap: applyTransactionImportTemplate(current.headers, template),
+      }
+      : current);
+    setSelectedTemplateId(templateId);
+    setImportResult(null);
+  }
+
+  async function saveImportTemplate() {
+    if (!importDraft || !templateName.trim() || !canReviewImport) return;
+
+    const now = Date.now();
+    await actions.save('importTemplates', buildTransactionImportTemplate({
+      id: makeId('tpl'),
+      name: templateName,
+      headers: importDraft.headers,
+      columnMap: importDraft.columnMap,
+      now,
+    }));
+    setImportMessage(`Modelo "${templateName.trim()}" salvo.`);
+    setTemplateName('');
+  }
+
+  async function removeImportTemplate(template) {
+    if (!window.confirm(`Excluir o modelo "${template.name}"?`)) return;
+    await actions.remove('importTemplates', template.id);
+    if (selectedTemplateId === template.id) setSelectedTemplateId('');
   }
 
   function buildImportPreview() {
@@ -258,6 +304,7 @@ export function SettingsPage({ data, actions, paymentMethods }) {
   const canReviewImport = !!importDraft && !missingImportFields.length && !repeatedImportColumns;
   const replaceNeedsConfirmation = restoreMode === 'replace' && restoreConfirm !== RESTORE_CONFIRM_TEXT;
   const canApplyRestore = !!restorePreview?.ok && !restoring && !replaceNeedsConfirmation;
+  const importTemplates = data.importTemplates || [];
 
   return (
     <div className="content-grid">
@@ -353,12 +400,49 @@ export function SettingsPage({ data, actions, paymentMethods }) {
                 </Field>
               ))}
             </div>
+            <div className="template-tools spacing-top">
+              <Field label="Modelo salvo">
+                <select value={selectedTemplateId} onChange={(event) => applyImportTemplate(event.target.value)}>
+                  <option value="">Selecionar modelo</option>
+                  {importTemplates.map((template) => (
+                    <option key={template.id} value={template.id}>{template.name}</option>
+                  ))}
+                </select>
+              </Field>
+              <Field label="Salvar mapeamento como">
+                <input value={templateName} onChange={(event) => setTemplateName(event.target.value)} placeholder="Nubank, Inter, Banco X..." />
+              </Field>
+              <div className="form-actions">
+                <button className="secondary-button" disabled={!templateName.trim() || !canReviewImport} onClick={saveImportTemplate} type="button"><Plus size={17} /> Salvar modelo</button>
+              </div>
+            </div>
             {!!missingImportFields.length && (
               <div className="notice compact error spacing-top">Mapeie os campos obrigatorios: {missingImportFields.join(', ')}.</div>
             )}
             {repeatedImportColumns && (
               <div className="notice compact error spacing-top">Cada campo precisa apontar para uma coluna diferente.</div>
             )}
+          </div>
+        )}
+        {!!importTemplates.length && (
+          <div className="template-list spacing-top">
+            <div className="panel-header compact-header">
+              <div>
+                <h2>Modelos de importacao</h2>
+                <p>{importTemplates.length} modelo(s) salvo(s).</p>
+              </div>
+            </div>
+            <div className="list spacing-top">
+              {importTemplates.map((template) => (
+                <div className="list-row" key={template.id}>
+                  <div className="row-main">
+                    <strong>{template.name}</strong>
+                    <span>{templateFieldsLabel(template.columnMap)}</span>
+                  </div>
+                  <button className="icon-button danger" onClick={() => removeImportTemplate(template)} title="Remover modelo" type="button"><Trash2 size={15} /></button>
+                </div>
+              ))}
+            </div>
           </div>
         )}
         {importMessage && <div className="notice compact spacing-top">{importMessage}</div>}
@@ -521,7 +605,16 @@ function collectionLabel(name) {
     allocations: 'Distribuicoes',
     monthlyClosings: 'Fechamentos mensais',
     automationRules: 'Regras automaticas',
+    importTemplates: 'Modelos de importacao',
   };
 
   return labels[name] || name;
+}
+
+function templateFieldsLabel(columnMap = {}) {
+  const labels = TRANSACTION_COLUMN_FIELDS
+    .filter((field) => columnMap[field.id] !== undefined)
+    .map((field) => field.label);
+
+  return labels.length ? labels.join(', ') : 'Sem campos mapeados';
 }

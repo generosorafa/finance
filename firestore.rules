@@ -134,6 +134,13 @@ service cloud.firestore {
         ]);
       }
 
+      match /importTemplates/{docId} {
+        allow read, delete: if isOwner(userId);
+        allow create, update: if isOwner(userId) && validOwnedDoc(docId, [
+          'id', 'name', 'columnMap', 'headerMap', 'createdAt', 'updatedAt'
+        ]);
+      }
+
       match /config/{configId} {
         allow read: if isOwner(userId) && configId == 'settings';
         allow create, update: if isOwner(userId) && configId == 'settings' && validSettings();

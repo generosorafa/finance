@@ -1140,11 +1140,19 @@ select:focus {
 .column-map,
 .import-box,
 .import-review,
-.restore-review {
+.restore-review,
+.template-list {
   border: 1px solid var(--line);
   border-radius: 8px;
   background: var(--surface-2);
   padding: 12px;
+}
+
+.template-tools {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: end;
 }
 
 .restore-options {
@@ -1387,6 +1395,7 @@ select:focus {
   .cash-flow-grid,
   .mapping-grid,
   .reserve-grid,
+  .template-tools,
   .projection-grid {
     grid-template-columns: 1fr;
   }

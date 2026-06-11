@@ -2,6 +2,8 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
   buildFinanceBackup,
+  applyTransactionImportTemplate,
+  buildTransactionImportTemplate,
   parseCsv,
   prepareBackupRestore,
   prepareTransactionImport,
@@ -171,5 +173,31 @@ test('suggestTransactionColumnMap identifies known transaction headers', () => {
     descricao: '1',
     valor: '2',
     categoria: '3',
+  });
+});
+
+test('transaction import templates match columns by header before index fallback', () => {
+  const template = buildTransactionImportTemplate({
+    id: 'tpl_1',
+    name: 'Banco',
+    headers: ['Data', 'Descricao', 'Valor'],
+    columnMap: { data: '0', descricao: '1', valor: '2' },
+    now: 100,
+  });
+
+  assert.deepEqual(template.headerMap, {
+    data: 'Data',
+    descricao: 'Descricao',
+    valor: 'Valor',
+  });
+  assert.deepEqual(applyTransactionImportTemplate(['Valor', 'Data', 'Descricao'], template), {
+    data: '1',
+    descricao: '2',
+    valor: '0',
+  });
+  assert.deepEqual(applyTransactionImportTemplate(['Quando', 'Memo', 'Dinheiro'], template), {
+    data: '0',
+    descricao: '1',
+    valor: '2',
   });
 });

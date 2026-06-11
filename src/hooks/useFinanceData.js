@@ -24,6 +24,7 @@ const EMPTY_DATA = {
   allocations: [],
   monthlyClosings: [],
   automationRules: [],
+  importTemplates: [],
   settings: {},
 };
 

@@ -251,6 +251,49 @@ export function suggestTransactionColumnMap(headers) {
   }, {});
 }
 
+export function buildTransactionImportTemplate({ id, name, headers, columnMap, now = Date.now() }) {
+  const cleanColumnMap = cleanTemplateColumnMap(columnMap);
+
+  return {
+    id,
+    name: String(name || '').trim(),
+    columnMap: cleanColumnMap,
+    headerMap: Object.fromEntries(
+      Object.entries(cleanColumnMap).map(([fieldId, rawIndex]) => {
+        const index = Number(rawIndex);
+        return [fieldId, headers[index] || ''];
+      }),
+    ),
+    createdAt: now,
+    updatedAt: now,
+  };
+}
+
+export function applyTransactionImportTemplate(headers, template) {
+  const sourceHeaders = headers || [];
+  const usedIndexes = new Set();
+  const mapping = {};
+
+  TRANSACTION_COLUMN_FIELDS.forEach((field) => {
+    const storedHeader = template?.headerMap?.[field.id];
+    const storedIndex = template?.columnMap?.[field.id];
+    const indexByHeader = findHeaderIndex(sourceHeaders, storedHeader, usedIndexes);
+    const fallbackIndex = Number(storedIndex);
+    const finalIndex = indexByHeader >= 0
+      ? indexByHeader
+      : Number.isInteger(fallbackIndex) && fallbackIndex >= 0 && fallbackIndex < sourceHeaders.length && !usedIndexes.has(fallbackIndex)
+        ? fallbackIndex
+        : -1;
+
+    if (finalIndex >= 0) {
+      mapping[field.id] = String(finalIndex);
+      usedIndexes.add(finalIndex);
+    }
+  });
+
+  return mapping;
+}
+
 function transactionFromImportRecord(record, context) {
   const desc = stringValue(record.descricao || record.description);
   const date = parseImportDate(record.data || record.date);
@@ -421,6 +464,30 @@ function transactionImportKey(item) {
 
 function stringValue(value) {
   return String(value || '').trim();
+}
+
+function cleanTemplateColumnMap(columnMap) {
+  return Object.fromEntries(
+    Object.entries(columnMap || {})
+      .filter(([fieldId, rawIndex]) => (
+        TRANSACTION_COLUMN_FIELDS.some((field) => field.id === fieldId)
+        && rawIndex !== ''
+        && rawIndex !== null
+        && rawIndex !== undefined
+        && Number.isInteger(Number(rawIndex))
+      ))
+      .map(([fieldId, rawIndex]) => [fieldId, String(Number(rawIndex))]),
+  );
+}
+
+function findHeaderIndex(headers, storedHeader, usedIndexes) {
+  const normalized = normalizeText(storedHeader);
+  if (!normalized) return -1;
+
+  return headers.findIndex((header, index) => (
+    !usedIndexes.has(index)
+    && normalizeText(header) === normalized
+  ));
 }
 
 function parseBackupJson(jsonText) {
