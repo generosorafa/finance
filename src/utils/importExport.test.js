@@ -3,6 +3,7 @@ import test from 'node:test';
 import {
   buildFinanceBackup,
   parseCsv,
+  prepareBackupRestore,
   prepareTransactionImport,
   suggestTransactionColumnMap,
 } from './importExport.js';
@@ -18,6 +19,55 @@ test('buildFinanceBackup stores settings and array collections', () => {
   assert.equal(backup.version, 1);
   assert.deepEqual(backup.settings, { paymentMethods: ['PIX'] });
   assert.deepEqual(backup.collections, { transactions: [{ id: 'tx_1' }] });
+});
+
+test('prepareBackupRestore validates and summarizes a finance backup', () => {
+  const json = JSON.stringify({
+    app: 'finance',
+    version: 1,
+    exportedAt: '2026-06-10T10:00:00.000Z',
+    settings: { paymentMethods: ['PIX'], ignored: true },
+    collections: {
+      transactions: [{ id: 'tx_1', desc: 'Mercado' }, { id: 'tx_2', desc: 'Salario' }],
+      cards: [{ id: 'card_1', name: 'Visa' }],
+      legacy: [{ id: 'old' }],
+    },
+  });
+
+  const result = prepareBackupRestore(json, {
+    transactions: [{ id: 'tx_1' }],
+    cards: [{ id: 'card_old' }],
+  });
+
+  assert.equal(result.ok, true);
+  assert.equal(result.totalDocs, 3);
+  assert.deepEqual(result.settingsKeys, ['paymentMethods']);
+  assert.deepEqual(result.unknownCollections, ['legacy']);
+  assert.deepEqual(result.summary.find((item) => item.name === 'transactions'), {
+    name: 'transactions',
+    count: 2,
+    creates: 1,
+    updates: 1,
+    removes: 0,
+  });
+  assert.deepEqual(result.summary.find((item) => item.name === 'cards'), {
+    name: 'cards',
+    count: 1,
+    creates: 1,
+    updates: 0,
+    removes: 1,
+  });
+});
+
+test('prepareBackupRestore rejects invalid backup files', () => {
+  assert.equal(prepareBackupRestore('{').ok, false);
+  assert.equal(prepareBackupRestore('null').ok, false);
+  assert.equal(prepareBackupRestore(JSON.stringify({ app: 'other', version: 1, collections: {} })).ok, false);
+  assert.equal(prepareBackupRestore(JSON.stringify({
+    app: 'finance',
+    version: 1,
+    collections: { transactions: [{ desc: 'Sem id' }] },
+  })).ok, false);
 });
 
 test('parseCsv handles semicolon, quotes and commas inside cells', () => {

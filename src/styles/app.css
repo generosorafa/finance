@@ -1139,11 +1139,58 @@ select:focus {
 
 .column-map,
 .import-box,
-.import-review {
+.import-review,
+.restore-review {
   border: 1px solid var(--line);
   border-radius: 8px;
   background: var(--surface-2);
   padding: 12px;
+}
+
+.restore-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.restore-options button {
+  min-height: 38px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--muted);
+  padding: 0 12px;
+}
+
+.restore-options button.active {
+  border-color: var(--info);
+  color: var(--text);
+}
+
+.restore-options button.danger.active {
+  border-color: rgba(255, 116, 109, 0.65);
+  color: var(--negative);
+}
+
+.restore-summary {
+  display: grid;
+  gap: 8px;
+}
+
+.restore-summary-row {
+  display: grid;
+  grid-template-columns: minmax(160px, 1.2fr) repeat(4, minmax(0, 1fr));
+  gap: 8px;
+  align-items: center;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+}
+
+.restore-summary-row span {
+  color: var(--muted);
+  font-size: 0.82rem;
 }
 
 .mapping-grid {
@@ -1352,6 +1399,10 @@ select:focus {
   .alert-row {
     align-items: stretch;
     flex-direction: column;
+  }
+
+  .restore-summary-row {
+    grid-template-columns: 1fr;
   }
 
   .asset-row .icon-button {

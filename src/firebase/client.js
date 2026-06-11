@@ -97,3 +97,8 @@ export async function saveSettings(userId, settings) {
   const ref = doc(db, 'users', userId, 'config', 'settings');
   await setDoc(ref, settings, { merge: true });
 }
+
+export async function replaceSettings(userId, settings) {
+  const ref = doc(db, 'users', userId, 'config', 'settings');
+  await setDoc(ref, settings);
+}

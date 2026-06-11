@@ -4,6 +4,7 @@ import {
   loadCollection,
   loadSettings,
   removeUserDocument,
+  replaceSettings as persistReplaceSettings,
   saveSettings as persistSettings,
   saveUserDocument,
 } from '../firebase/client.js';
@@ -175,6 +176,14 @@ export function useFinanceData(user) {
       setData((current) => ({
         ...current,
         settings: { ...current.settings, ...nextSettings },
+      }));
+    },
+    async replaceSettings(nextSettings) {
+      if (!userId) return;
+      await persistReplaceSettings(userId, nextSettings);
+      setData((current) => ({
+        ...current,
+        settings: nextSettings,
       }));
     },
   }), [userId]);

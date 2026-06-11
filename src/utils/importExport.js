@@ -1,3 +1,4 @@
+import { COLLECTIONS } from '../data/defaults.js';
 import {
   applyAutomationRule,
   findAutomationRule,
@@ -35,6 +36,90 @@ export function buildFinanceBackup(data, exportedAt = new Date().toISOString()) 
         .filter(([, value]) => Array.isArray(value))
         .map(([key, value]) => [key, value]),
     ),
+  };
+}
+
+export function prepareBackupRestore(jsonText, currentData = {}) {
+  const parsed = parseBackupJson(jsonText);
+  if (parsed.error) return { ok: false, error: parsed.error };
+
+  const backup = parsed.backup;
+  if (!backup || typeof backup !== 'object' || Array.isArray(backup)) {
+    return { ok: false, error: 'Arquivo de backup precisa ser um objeto JSON.' };
+  }
+
+  if (backup.app !== 'finance') {
+    return { ok: false, error: 'Este arquivo nao parece ser um backup do Finance.' };
+  }
+
+  if (Number(backup.version || 0) !== 1) {
+    return { ok: false, error: 'Versao de backup nao suportada.' };
+  }
+
+  if (!backup.collections || typeof backup.collections !== 'object' || Array.isArray(backup.collections)) {
+    return { ok: false, error: 'Backup sem colecoes validas.' };
+  }
+
+  const unknownCollections = Object.keys(backup.collections)
+    .filter((name) => !COLLECTIONS.includes(name));
+  const invalidDocs = [];
+  const collections = {};
+  const summary = [];
+
+  COLLECTIONS.forEach((name) => {
+    const source = backup.collections[name] || [];
+    if (!Array.isArray(source)) {
+      invalidDocs.push({ collection: name, id: '-', reason: 'colecao nao e uma lista' });
+      return;
+    }
+
+    const docs = source.filter((item) => {
+      const valid = item && typeof item === 'object' && !Array.isArray(item) && typeof item.id === 'string' && item.id.trim();
+      if (!valid) invalidDocs.push({ collection: name, id: item?.id || '-', reason: 'documento sem id valido' });
+      return valid;
+    });
+    const current = Array.isArray(currentData[name]) ? currentData[name] : [];
+    const backupIds = new Set(docs.map((item) => item.id));
+    const currentIds = new Set(current.map((item) => item.id));
+    const creates = docs.filter((item) => !currentIds.has(item.id)).length;
+    const updates = docs.length - creates;
+    const removes = current.filter((item) => !backupIds.has(item.id)).length;
+
+    collections[name] = docs;
+    summary.push({
+      name,
+      count: docs.length,
+      creates,
+      updates,
+      removes,
+    });
+  });
+
+  if (invalidDocs.length) {
+    const first = invalidDocs[0];
+    return {
+      ok: false,
+      error: `Backup com documento invalido em ${first.collection}.`,
+      invalidDocs,
+    };
+  }
+
+  const settings = sanitizeSettings(backup.settings);
+  const totalDocs = summary.reduce((sum, item) => sum + item.count, 0);
+
+  return {
+    ok: true,
+    backup: {
+      app: backup.app,
+      version: backup.version,
+      exportedAt: backup.exportedAt || '',
+      settings,
+      collections,
+    },
+    summary,
+    totalDocs,
+    settingsKeys: Object.keys(settings),
+    unknownCollections,
   };
 }
 
@@ -336,4 +421,34 @@ function transactionImportKey(item) {
 
 function stringValue(value) {
   return String(value || '').trim();
+}
+
+function parseBackupJson(jsonText) {
+  try {
+    return { backup: JSON.parse(jsonText) };
+  } catch {
+    return { error: 'Arquivo JSON invalido.' };
+  }
+}
+
+function sanitizeSettings(settings) {
+  if (!settings || typeof settings !== 'object' || Array.isArray(settings)) return {};
+
+  const sanitized = {};
+
+  if (Array.isArray(settings.paymentMethods)) {
+    sanitized.paymentMethods = settings.paymentMethods
+      .filter((item) => typeof item === 'string' && item.trim())
+      .map((item) => item.trim());
+  }
+
+  if (settings.initialBalance !== undefined && settings.initialBalance !== null && Number.isFinite(Number(settings.initialBalance))) {
+    sanitized.initialBalance = Number(settings.initialBalance);
+  }
+
+  if (typeof settings.initialDate === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(settings.initialDate)) {
+    sanitized.initialDate = settings.initialDate;
+  }
+
+  return sanitized;
 }

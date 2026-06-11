@@ -1,15 +1,19 @@
 import { useEffect, useState } from 'react';
 import { Check, Download, FileText, Plus, Trash2, Upload } from 'lucide-react';
 import { EmptyState, Field, paymentLabel } from '../components/ui.jsx';
+import { COLLECTIONS } from '../data/defaults.js';
 import { downloadText } from '../utils/download.js';
 import {
   TRANSACTION_COLUMN_FIELDS,
   buildFinanceBackup,
   parseCsv,
+  prepareBackupRestore,
   prepareTransactionImport,
   suggestTransactionColumnMap,
 } from '../utils/importExport.js';
 import { exportTransactionsCsv, formatCurrency, makeId, today } from '../utils/finance.js';
+
+const RESTORE_CONFIRM_TEXT = 'SUBSTITUIR';
 
 export function SettingsPage({ data, actions, paymentMethods }) {
   const [newMethod, setNewMethod] = useState('');
@@ -18,6 +22,11 @@ export function SettingsPage({ data, actions, paymentMethods }) {
   const [importFileName, setImportFileName] = useState('');
   const [importing, setImporting] = useState(false);
   const [importMessage, setImportMessage] = useState('');
+  const [restorePreview, setRestorePreview] = useState(null);
+  const [restoreMode, setRestoreMode] = useState('merge');
+  const [restoreConfirm, setRestoreConfirm] = useState('');
+  const [restoreMessage, setRestoreMessage] = useState('');
+  const [restoring, setRestoring] = useState(false);
   const [rule, setRule] = useState({
     name: '',
     matchText: '',
@@ -89,6 +98,80 @@ export function SettingsPage({ data, actions, paymentMethods }) {
       '2026-06-10;Salario;Receita;Salario / Receita;Transferencia;3000,00;',
     ].join('\r\n');
     downloadText('modelo-importacao-transacoes.csv', `\uFEFF${csv}`, 'text/csv;charset=utf-8');
+  }
+
+  async function previewRestore(event) {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const text = await file.text();
+    const result = prepareBackupRestore(text, data);
+    if (!result.ok) {
+      setRestorePreview(null);
+      setRestoreMessage(result.error || 'Backup invalido.');
+      event.target.value = '';
+      return;
+    }
+
+    setRestorePreview({ ...result, fileName: file.name });
+    setRestoreMode('merge');
+    setRestoreConfirm('');
+    setRestoreMessage('');
+    event.target.value = '';
+  }
+
+  async function applyRestore() {
+    if (!restorePreview?.ok) return;
+    if (restoreMode === 'replace' && restoreConfirm !== RESTORE_CONFIRM_TEXT) return;
+
+    const backup = restorePreview.backup;
+    setRestoring(true);
+    setRestoreMessage('');
+
+    try {
+      downloadText(
+        `finance-backup-antes-restauracao-${today()}.json`,
+        JSON.stringify(buildFinanceBackup(data), null, 2),
+        'application/json;charset=utf-8',
+      );
+
+      if (restoreMode === 'replace') {
+        for (const collectionName of COLLECTIONS) {
+          const backupIds = new Set((backup.collections[collectionName] || []).map((item) => item.id));
+          const currentItems = Array.isArray(data[collectionName]) ? data[collectionName] : [];
+          for (const item of currentItems) {
+            if (!backupIds.has(item.id)) {
+              await actions.remove(collectionName, item.id);
+            }
+          }
+        }
+      }
+
+      for (const collectionName of COLLECTIONS) {
+        for (const item of backup.collections[collectionName] || []) {
+          await actions.save(collectionName, item);
+        }
+      }
+
+      if (restoreMode === 'replace') {
+        await actions.replaceSettings(backup.settings);
+      } else if (Object.keys(backup.settings).length) {
+        await actions.saveSettings(backup.settings);
+      }
+
+      setRestoreMessage(
+        restoreMode === 'replace'
+          ? 'Backup restaurado substituindo os dados atuais.'
+          : 'Backup restaurado mesclando com os dados atuais.',
+      );
+      setRestorePreview(null);
+      setRestoreConfirm('');
+      setRestoreMode('merge');
+    } catch (error) {
+      setRestoreMessage(error.message || 'Nao foi possivel restaurar o backup.');
+    } finally {
+      setRestoring(false);
+    }
   }
 
   async function previewImport(event) {
@@ -173,6 +256,8 @@ export function SettingsPage({ data, actions, paymentMethods }) {
       .map((field) => field.label)
     : [];
   const canReviewImport = !!importDraft && !missingImportFields.length && !repeatedImportColumns;
+  const replaceNeedsConfirmation = restoreMode === 'replace' && restoreConfirm !== RESTORE_CONFIRM_TEXT;
+  const canApplyRestore = !!restorePreview?.ok && !restoring && !replaceNeedsConfirmation;
 
   return (
     <div className="content-grid">
@@ -188,6 +273,55 @@ export function SettingsPage({ data, actions, paymentMethods }) {
           <button className="secondary-button" onClick={exportTransactions} type="button"><FileText size={17} /> Transacoes CSV</button>
           <button className="secondary-button" onClick={downloadTemplate} type="button"><Download size={17} /> Modelo CSV</button>
         </div>
+        <div className="import-box spacing-top">
+          <Field label="Restaurar backup JSON">
+            <input accept=".json,application/json" onChange={previewRestore} type="file" />
+          </Field>
+          <p>O backup e validado antes de salvar. Antes de restaurar, o estado atual e baixado como backup de seguranca.</p>
+        </div>
+        {restoreMessage && <div className={`notice compact spacing-top ${restoreMessage.includes('Nao') || restoreMessage.includes('invalido') ? 'error' : ''}`}>{restoreMessage}</div>}
+        {restorePreview?.ok && (
+          <div className="restore-review spacing-top">
+            <div className="panel-header compact-header">
+              <div>
+                <h2>Revisao do backup</h2>
+                <p>{restorePreview.fileName} · {restorePreview.totalDocs} documento(s) · exportado em {restorePreview.backup.exportedAt || 'data nao informada'}</p>
+              </div>
+              <button className="primary-button" disabled={!canApplyRestore} onClick={applyRestore} type="button">
+                <Upload size={17} /> Restaurar
+              </button>
+            </div>
+            <div className="restore-options spacing-top">
+              <button className={restoreMode === 'merge' ? 'active' : ''} onClick={() => setRestoreMode('merge')} type="button">Mesclar</button>
+              <button className={restoreMode === 'replace' ? 'active danger' : 'danger'} onClick={() => setRestoreMode('replace')} type="button">Substituir dados atuais</button>
+            </div>
+            {restoreMode === 'replace' && (
+              <div className="notice compact error spacing-top">
+                <strong>Atencao:</strong> este modo remove documentos atuais que nao estao no backup. Digite {RESTORE_CONFIRM_TEXT} para liberar.
+                <input className="spacing-top" value={restoreConfirm} onChange={(event) => setRestoreConfirm(event.target.value)} placeholder={RESTORE_CONFIRM_TEXT} />
+              </div>
+            )}
+            {!!restorePreview.unknownCollections.length && (
+              <div className="notice compact spacing-top">Colecoes desconhecidas ignoradas: {restorePreview.unknownCollections.join(', ')}.</div>
+            )}
+            {!!restorePreview.settingsKeys.length && (
+              <div className="notice compact spacing-top">Configuracoes no backup: {restorePreview.settingsKeys.join(', ')}.</div>
+            )}
+            <div className="restore-summary spacing-top">
+              {restorePreview.summary
+                .filter((item) => item.count || item.removes)
+                .map((item) => (
+                  <div className="restore-summary-row" key={item.name}>
+                    <strong>{collectionLabel(item.name)}</strong>
+                    <span>{item.count} no backup</span>
+                    <span>{item.creates} novo(s)</span>
+                    <span>{item.updates} atualizacao(oes)</span>
+                    <span>{item.removes} removido(s) se substituir</span>
+                  </div>
+                ))}
+            </div>
+          </div>
+        )}
         <div className="import-box spacing-top">
           <Field label="Importar CSV de transacoes">
             <input accept=".csv,text/csv" onChange={previewImport} type="file" />
@@ -370,4 +504,24 @@ export function SettingsPage({ data, actions, paymentMethods }) {
 
 function categoryName(categories, categoryId) {
   return categories.find((item) => item.id === categoryId)?.name || 'Sem categoria';
+}
+
+function collectionLabel(name) {
+  const labels = {
+    transactions: 'Transacoes',
+    installments: 'Parcelamentos',
+    fixedItems: 'Fixos e assinaturas',
+    categoryBudgets: 'Alvos por categoria',
+    cards: 'Cartoes',
+    categories: 'Categorias',
+    wallet: 'Carteira',
+    investments: 'Investimentos',
+    goals: 'Metas',
+    debts: 'Dividas',
+    allocations: 'Distribuicoes',
+    monthlyClosings: 'Fechamentos mensais',
+    automationRules: 'Regras automaticas',
+  };
+
+  return labels[name] || name;
 }
