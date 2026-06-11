@@ -2,10 +2,10 @@ import { useEffect, useState } from 'react';
 import { Check, Pencil, Plus, RotateCcw, Trash2, X } from 'lucide-react';
 import { EmptyState, Field } from '../components/ui.jsx';
 import {
+  cardInvoiceSummaries,
   formatCurrency,
   getCardIdFromPayment,
-  getInvoiceDueDate,
-  getInvoiceKey,
+  getCategory,
   invoicePaymentEntry,
   installmentsForMonth,
   makeId,
@@ -19,6 +19,8 @@ import {
 export function CardsPage({ data, actions, currentMonth, currentYear }) {
   const [card, setCard] = useState({ name: '', limit: '', closeDay: '10', dueDay: '20', color: '#3f7dd8' });
   const [editingCard, setEditingCard] = useState(null);
+  const [selectedInvoiceKey, setSelectedInvoiceKey] = useState('');
+  const [paymentAmounts, setPaymentAmounts] = useState({});
   const [installment, setInstallment] = useState({
     desc: '',
     total: '',
@@ -30,10 +32,17 @@ export function CardsPage({ data, actions, currentMonth, currentYear }) {
   });
   const invoiceMonth = monthKeyFromParts(currentYear, currentMonth);
   const monthInstallments = installmentsForMonth(data.installments, currentMonth, currentYear);
-  const directCardTransactions = data.cards.flatMap((cardItem) => (
-    transactionsForCardInvoice(data.transactions, cardItem, invoiceMonth)
-      .map((item) => ({ ...item, cardName: cardItem.name }))
-  ));
+  const invoiceSummaries = cardInvoiceSummaries(data, currentMonth, currentYear);
+  const selectedInvoice = invoiceSummaries.find((item) => item.invoiceKey === selectedInvoiceKey)
+    || invoiceSummaries.find((item) => item.total > 0)
+    || invoiceSummaries[0]
+    || null;
+  const selectedDirectTransactions = selectedInvoice
+    ? transactionsForCardInvoice(data.transactions, selectedInvoice.card, invoiceMonth)
+    : [];
+  const selectedInstallments = selectedInvoice
+    ? monthInstallments.filter((item) => item.cardId === selectedInvoice.card.id)
+    : [];
 
   useEffect(() => {
     setInstallment((current) => ({
@@ -42,6 +51,12 @@ export function CardsPage({ data, actions, currentMonth, currentYear }) {
       categoryId: current.categoryId || data.categories[0]?.id || '',
     }));
   }, [data.cards, data.categories]);
+
+  useEffect(() => {
+    if (!selectedInvoiceKey && selectedInvoice) {
+      setSelectedInvoiceKey(selectedInvoice.invoiceKey);
+    }
+  }, [selectedInvoice, selectedInvoiceKey]);
 
   async function saveCard(event) {
     event.preventDefault();
@@ -90,6 +105,38 @@ export function CardsPage({ data, actions, currentMonth, currentYear }) {
   async function removeDirectTransaction(item) {
     if (!window.confirm(`Excluir "${item.desc}"?`)) return;
     await actions.removeTransaction(item);
+  }
+
+  async function removeInvoicePayment(item) {
+    if (!window.confirm(`Remover pagamento de ${formatCurrency(item.amount)}?`)) return;
+    await actions.remove('wallet', item.id);
+  }
+
+  function paymentValueFor(invoice) {
+    if (!invoice) return '';
+    if (Object.prototype.hasOwnProperty.call(paymentAmounts, invoice.invoiceKey)) {
+      return paymentAmounts[invoice.invoiceKey];
+    }
+    return invoice.remaining > 0 ? invoice.remaining.toFixed(2) : '';
+  }
+
+  function setPaymentValue(invoiceKey, value) {
+    setPaymentAmounts((current) => ({ ...current, [invoiceKey]: value }));
+  }
+
+  async function saveInvoicePayment(invoice, rawAmount) {
+    const amount = Number(String(rawAmount || '').replace(',', '.'));
+    if (!invoice || !Number.isFinite(amount) || amount <= 0) return;
+    if (invoice.remaining > 0 && amount - invoice.remaining > 0.01) {
+      const confirmed = window.confirm('Este valor e maior que o restante da fatura. Registrar mesmo assim?');
+      if (!confirmed) return;
+    }
+    await actions.save('wallet', invoicePaymentEntry(invoice.card, invoiceMonth, amount, makeId('invoicepay')));
+    setPaymentAmounts((current) => {
+      const next = { ...current };
+      delete next[invoice.invoiceKey];
+      return next;
+    });
   }
 
   async function saveInstallment(event) {
@@ -154,70 +201,177 @@ export function CardsPage({ data, actions, currentMonth, currentYear }) {
           </div>
         </div>
         <div className="card-grid">
-          {data.cards.map((item) => {
-            const installmentTotal = monthInstallments
-              .filter((entry) => entry.cardId === item.id)
-              .reduce((sum, entry) => sum + Number(entry.parcelValue || 0), 0);
-            const transactionTotal = transactionsForCardInvoice(data.transactions, item, invoiceMonth)
-              .reduce((sum, entry) => sum + Number(entry.amount || 0), 0);
-            const total = installmentTotal + transactionTotal;
-            const invoiceKey = getInvoiceKey(item.id, invoiceMonth);
-            const paidEntry = data.wallet.find((entry) => entry.source === 'invoice' && entry.invoiceKey === invoiceKey);
-            const paymentMatchesInvoice = paidEntry && Math.abs(Number(paidEntry.amount || 0) - total) < 0.01;
-            return (
-              <div className="credit-card" key={item.id} style={{ borderColor: item.color }}>
+          {invoiceSummaries.map((invoice) => (
+            <div
+              className={`credit-card invoice-card ${selectedInvoice?.invoiceKey === invoice.invoiceKey ? 'selected' : ''}`}
+              key={invoice.card.id}
+              style={{ borderColor: invoice.card.color }}
+            >
+              <div className="invoice-card-header">
                 <div>
-                  <strong>{item.name}</strong>
-                  <span>Fecha dia {item.closeDay} · Vence dia {item.dueDay}</span>
+                  <strong>{invoice.card.name}</strong>
+                  <span>Fecha dia {invoice.card.closeDay} · Vence dia {invoice.card.dueDay}</span>
                 </div>
-                <b>{formatCurrency(total)}</b>
-                <small>Compras {formatCurrency(transactionTotal)} · Parcelas {formatCurrency(installmentTotal)}</small>
-                <small>Vencimento {getInvoiceDueDate(item, invoiceMonth)} · {paidEntry ? (paymentMatchesInvoice ? 'Paga' : 'Pagamento divergente') : 'Aberta'}</small>
-                <div className="card-actions">
-                  <button className="icon-button" onClick={() => editCard(item)} title="Editar" type="button"><Pencil size={16} /></button>
-                  <button className="icon-button danger" onClick={() => removeCard(item)} title="Excluir" type="button"><Trash2 size={16} /></button>
-                </div>
-                {total > 0 && (
-                  paidEntry
-                    ? (
-                      <>
-                        {!paymentMatchesInvoice && <button className="primary-button" onClick={() => actions.save('wallet', invoicePaymentEntry(item, invoiceMonth, total))} type="button"><Check size={16} /> Atualizar pagamento</button>}
-                        <button className="secondary-button" onClick={() => actions.remove('wallet', paidEntry.id)} type="button"><RotateCcw size={16} /> Desfazer pagamento</button>
-                      </>
-                    )
-                    : <button className="primary-button" onClick={() => actions.save('wallet', invoicePaymentEntry(item, invoiceMonth, total))} type="button"><Check size={16} /> Pagar fatura</button>
+                <span className={`pill ${invoiceStatusTone(invoice.status)}`}>{invoiceStatusLabel(invoice.status)}</span>
+              </div>
+              <b>{formatCurrency(invoice.total)}</b>
+              <div className="invoice-mini-grid">
+                <span>Compras <strong>{formatCurrency(invoice.direct)}</strong></span>
+                <span>Parcelas <strong>{formatCurrency(invoice.installments)}</strong></span>
+                <span>Pago <strong>{formatCurrency(invoice.paidTotal)}</strong></span>
+                <span>Restante <strong>{formatCurrency(invoice.remaining)}</strong></span>
+              </div>
+              <small>Vencimento {invoice.dueDate}</small>
+              <div className="card-actions">
+                <button className="icon-button" onClick={() => editCard(invoice.card)} title="Editar cartao" type="button"><Pencil size={16} /></button>
+                <button className="icon-button danger" onClick={() => removeCard(invoice.card)} title="Excluir cartao" type="button"><Trash2 size={16} /></button>
+              </div>
+              <div className="invoice-actions">
+                <button className="secondary-button" onClick={() => setSelectedInvoiceKey(invoice.invoiceKey)} type="button">Detalhes</button>
+                {invoice.remaining > 0 && (
+                  <button className="primary-button" onClick={() => saveInvoicePayment(invoice, invoice.remaining)} type="button">
+                    <Check size={16} /> Quitar restante
+                  </button>
+                )}
+                {!!invoice.paidEntries.length && (
+                  <button className="secondary-button" onClick={() => removeInvoicePayment(invoice.paidEntries[0])} type="button">
+                    <RotateCcw size={16} /> Desfazer ultimo
+                  </button>
                 )}
               </div>
-            );
-          })}
-        </div>
-        <div className="list spacing-top">
-          {monthInstallments.map((item) => (
-            <div className="list-row" key={`${item.id}-${item.paidCount}`}>
-              <div className="row-main">
-                <strong>{item.desc}</strong>
-                <span>Parcela {item.paidCount}/{item.parcels}</span>
-              </div>
-              <strong>{formatCurrency(item.parcelValue)}</strong>
-              <button className="icon-button danger" onClick={() => actions.remove('installments', item.id)} title="Excluir" type="button"><Trash2 size={16} /></button>
             </div>
           ))}
+          {!invoiceSummaries.length && <EmptyState title="Nenhum cartao cadastrado." />}
         </div>
-        <div className="panel-subtitle spacing-top">Compras diretas no cartão</div>
-        <div className="list spacing-top">
-          {directCardTransactions.map((item) => (
-            <div className="list-row" key={item.id}>
-              <div className="row-main">
-                <strong>{item.desc}</strong>
-                <span>{item.date} · {item.cardName}</span>
+
+        {selectedInvoice ? (
+          <div className="invoice-detail spacing-top">
+            <div className="panel-header compact-header">
+              <div>
+                <span className="eyebrow">Detalhe da fatura</span>
+                <h3>{selectedInvoice.card.name} · {monthLabel(currentYear, currentMonth)}</h3>
+                <p>Composicao por compras diretas, parcelas e pagamentos registrados.</p>
               </div>
-              <strong className="money-negative">{formatCurrency(item.amount)}</strong>
-              <button className="icon-button danger" onClick={() => removeDirectTransaction(item)} title="Excluir" type="button"><Trash2 size={16} /></button>
+              <span className={`pill ${invoiceStatusTone(selectedInvoice.status)}`}>{invoiceStatusLabel(selectedInvoice.status)}</span>
             </div>
-          ))}
-          {!directCardTransactions.length && <EmptyState title="Nenhuma compra direta em cartao neste mes." />}
-        </div>
+
+            <div className="invoice-metric-grid">
+              <InvoiceMetric label="Total da fatura" value={selectedInvoice.total} />
+              <InvoiceMetric label="Compras diretas" value={selectedInvoice.direct} />
+              <InvoiceMetric label="Parcelas" value={selectedInvoice.installments} />
+              <InvoiceMetric label="Pago" value={selectedInvoice.paidTotal} />
+              <InvoiceMetric label="Restante" value={selectedInvoice.remaining} tone={selectedInvoice.remaining > 0 ? 'negative' : 'positive'} />
+              <InvoiceMetric label="Diferenca" value={selectedInvoice.difference} tone={selectedInvoice.difference > 0 ? 'warning' : 'muted'} />
+            </div>
+
+            <form
+              className="invoice-payment-form"
+              onSubmit={(event) => {
+                event.preventDefault();
+                saveInvoicePayment(selectedInvoice, paymentValueFor(selectedInvoice));
+              }}
+            >
+              <Field label="Registrar pagamento">
+                <input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={paymentValueFor(selectedInvoice)}
+                  onChange={(event) => setPaymentValue(selectedInvoice.invoiceKey, event.target.value)}
+                  placeholder="Valor pago"
+                />
+              </Field>
+              <button className="primary-button" type="submit"><Plus size={17} /> Adicionar pagamento</button>
+            </form>
+
+            <div className="invoice-detail-grid">
+              <InvoiceList title="Compras diretas">
+                {selectedDirectTransactions.map((item) => (
+                  <div className="list-row" key={item.id}>
+                    <div className="row-main">
+                      <strong>{item.desc}</strong>
+                      <span>{item.date} · {getCategory(data.categories, item.category).name}</span>
+                    </div>
+                    <strong className="money-negative">{formatCurrency(item.amount)}</strong>
+                    <button className="icon-button danger" onClick={() => removeDirectTransaction(item)} title="Excluir" type="button"><Trash2 size={16} /></button>
+                  </div>
+                ))}
+                {!selectedDirectTransactions.length && <EmptyState title="Nenhuma compra direta nesta fatura." />}
+              </InvoiceList>
+
+              <InvoiceList title="Parcelas">
+                {selectedInstallments.map((item) => (
+                  <div className="list-row" key={`${item.id}-${item.paidCount}`}>
+                    <div className="row-main">
+                      <strong>{item.desc}</strong>
+                      <span>Parcela {item.paidCount}/{item.parcels} · compra em {item.purchaseDate || '-'}</span>
+                    </div>
+                    <strong className="money-negative">{formatCurrency(item.parcelValue)}</strong>
+                    <button className="icon-button danger" onClick={() => actions.remove('installments', item.id)} title="Excluir" type="button"><Trash2 size={16} /></button>
+                  </div>
+                ))}
+                {!selectedInstallments.length && <EmptyState title="Nenhuma parcela nesta fatura." />}
+              </InvoiceList>
+
+              <InvoiceList title="Pagamentos registrados">
+                {(selectedInvoice.paidEntries || []).map((item) => (
+                  <div className="list-row" key={item.id}>
+                    <div className="row-main">
+                      <strong>{item.desc}</strong>
+                      <span>{item.date} · carteira</span>
+                    </div>
+                    <strong>{formatCurrency(item.amount)}</strong>
+                    <button className="icon-button danger" onClick={() => removeInvoicePayment(item)} title="Remover pagamento" type="button"><Trash2 size={16} /></button>
+                  </div>
+                ))}
+                {!selectedInvoice.paidEntries.length && <EmptyState title="Nenhum pagamento registrado." />}
+              </InvoiceList>
+            </div>
+          </div>
+        ) : (
+          <div className="spacing-top">
+            <EmptyState title="Cadastre um cartao para acompanhar faturas." />
+          </div>
+        )}
       </section>
     </div>
   );
+}
+
+function InvoiceMetric({ label, value, tone = 'muted' }) {
+  const className = tone === 'positive'
+    ? 'money-positive'
+    : tone === 'negative' || tone === 'warning'
+      ? 'money-negative'
+      : '';
+
+  return (
+    <div className="invoice-metric">
+      <span>{label}</span>
+      <strong className={className}>{formatCurrency(value)}</strong>
+    </div>
+  );
+}
+
+function InvoiceList({ title, children }) {
+  return (
+    <div className="invoice-list-block">
+      <div className="panel-subtitle">{title}</div>
+      <div className="list">{children}</div>
+    </div>
+  );
+}
+
+function invoiceStatusLabel(status) {
+  if (status === 'paid') return 'Paga';
+  if (status === 'partial') return 'Parcial';
+  if (status === 'overpaid' || status === 'divergent') return 'Divergente';
+  if (status === 'open') return 'Aberta';
+  return 'Sem valor';
+}
+
+function invoiceStatusTone(status) {
+  if (status === 'paid') return 'positive';
+  if (status === 'partial' || status === 'overpaid' || status === 'divergent') return 'warning';
+  return 'muted';
 }

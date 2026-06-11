@@ -182,7 +182,43 @@ test('cardInvoiceSummaries combines card purchases and installments', () => {
   assert.equal(invoice.direct, 80);
   assert.equal(invoice.installments, 50);
   assert.equal(invoice.total, 130);
+  assert.equal(invoice.paidTotal, 0);
+  assert.equal(invoice.remaining, 130);
   assert.equal(invoice.status, 'open');
+});
+
+test('cardInvoiceSummaries tracks partial, paid and overpaid invoice payments', () => {
+  const base = {
+    transactions: [{ id: 'tx1', type: 'despesa', amount: 80, payment: 'CC::card_1', date: '2026-06-05' }],
+    installments: [{ id: 'i1', firstMonth: '2026-06', parcels: 2, parcelValue: 50, cardId: 'card_1' }],
+    cards: [{ id: 'card_1', name: 'Visa', closeDay: 10, dueDay: 20 }],
+    wallet: [],
+  };
+
+  const [partial] = cardInvoiceSummaries({
+    ...base,
+    wallet: [{ id: 'w1', source: 'invoice', invoiceKey: 'card_1::2026-06', type: 'saida', amount: 50 }],
+  }, 5, 2026);
+  assert.equal(partial.status, 'partial');
+  assert.equal(partial.paidTotal, 50);
+  assert.equal(partial.remaining, 80);
+
+  const [paid] = cardInvoiceSummaries({
+    ...base,
+    wallet: [
+      { id: 'w1', source: 'invoice', invoiceKey: 'card_1::2026-06', type: 'saida', amount: 50 },
+      { id: 'w2', source: 'invoice', invoiceKey: 'card_1::2026-06', type: 'saida', amount: 80 },
+    ],
+  }, 5, 2026);
+  assert.equal(paid.status, 'paid');
+  assert.equal(paid.remaining, 0);
+
+  const [overpaid] = cardInvoiceSummaries({
+    ...base,
+    wallet: [{ id: 'w3', source: 'invoice', invoiceKey: 'card_1::2026-06', type: 'saida', amount: 150 }],
+  }, 5, 2026);
+  assert.equal(overpaid.status, 'overpaid');
+  assert.equal(overpaid.difference, 20);
 });
 
 test('monthlyClosingInsights surfaces pending work before closing', () => {
@@ -258,6 +294,30 @@ test('smartCashSummary estimates free cash after open invoices and pending fixed
   assert.equal(cash.reservedTotal, 300);
   assert.equal(cash.reservedAllocated, 100);
   assert.equal(cash.reservedAvailable, 200);
+});
+
+test('smartCashSummary counts only the remaining invoice balance after partial payments', () => {
+  const data = {
+    settings: { initialBalance: 1000 },
+    wallet: [
+      { id: 'wallet_invoice_card_1_2026-06_part', type: 'saida', source: 'invoice', invoiceKey: 'card_1::2026-06', cardId: 'card_1', amount: 75 },
+    ],
+    categories: [],
+    transactions: [
+      { id: 'tx_card', type: 'despesa', amount: 200, payment: 'CC::card_1', date: '2026-06-03' },
+    ],
+    installments: [],
+    fixedItems: [],
+    cards: [{ id: 'card_1', name: 'Visa', closeDay: 10, dueDay: 20 }],
+    allocations: [],
+  };
+  const cash = smartCashSummary(data, 5, 2026);
+
+  assert.equal(cash.wallet, 925);
+  assert.equal(cash.openInvoiceTotal, 125);
+  assert.equal(cash.committedTotal, 125);
+  assert.equal(cash.freeEstimated, 800);
+  assert.equal(cash.openInvoices[0].status, 'partial');
 });
 
 test('monthlyProjection estimates end of month result from variable spending pace', () => {
@@ -345,7 +405,7 @@ test('dataHealthInsights summarizes data issues for review', () => {
       { id: 'wallet_tx_bad_category', source: 'transaction', transactionId: 'bad_category', type: 'saida', amount: 20 },
       { id: 'wallet_tx_goal_cash', source: 'transaction', transactionId: 'goal_cash', type: 'saida', amount: 200 },
       { id: 'wallet_tx_may', source: 'transaction', transactionId: 'may', type: 'entrada', amount: 1000 },
-      { id: 'wallet_invoice_card_1_2026-06', source: 'invoice', invoiceKey: 'card_1::2026-06', type: 'saida', amount: 90 },
+      { id: 'wallet_invoice_card_1_2026-06', source: 'invoice', invoiceKey: 'card_1::2026-06', type: 'saida', amount: 190 },
     ],
     fixedItems: [{ id: 'rent', name: 'Aluguel', amount: 1000, dueDay: 5, active: true, startMonth: '2026-01', payment: 'PIX' }],
     installments: [],

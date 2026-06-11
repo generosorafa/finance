@@ -159,7 +159,7 @@ export function DashboardPage({ data, actions, paymentMethods, currentMonth, cur
         <div className="projection-details">
           <span>Receitas atuais {formatCurrency(projection.actualIncome)}</span>
           <span>Despesas projetadas {formatCurrency(projection.projectedExpenses)}</span>
-          <span>Faturas abertas {formatCurrency(projection.openInvoiceTotal)}</span>
+          <span>Faturas restantes {formatCurrency(projection.openInvoiceTotal)}</span>
           <span>Fixos pendentes {formatCurrency(projection.pendingFixedTotal)}</span>
         </div>
       </section>

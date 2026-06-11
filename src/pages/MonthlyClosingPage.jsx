@@ -156,10 +156,10 @@ export function MonthlyClosingPage({ data, actions, currentMonth, currentYear, s
             <div className="list-row" key={item.card.id}>
               <div className="row-main">
                 <strong>{item.card.name}</strong>
-                <span>Vence {item.dueDate} · compras {formatCurrency(item.direct)} · parcelas {formatCurrency(item.installments)}</span>
+                <span>Vence {item.dueDate} · pago {formatCurrency(item.paidTotal)} · restante {formatCurrency(item.remaining)}</span>
               </div>
               <strong>{formatCurrency(item.total)}</strong>
-              <span className={`pill ${item.status === 'paid' ? 'positive' : item.status === 'divergent' ? 'warning' : 'muted'}`}>
+              <span className={`pill ${invoiceStatusTone(item.status)}`}>
                 {invoiceStatusLabel(item.status)}
               </span>
             </div>
@@ -210,7 +210,7 @@ function PendingBlock({ title, items, actionLabel, onAction }) {
               <strong>{item.name || item.card?.name}</strong>
               <span>{item.dueDate ? `Vence ${item.dueDate}` : item.detail || ''}</span>
             </div>
-            <strong className="money-negative">{formatCurrency(item.amount || item.total)}</strong>
+            <strong className="money-negative">{formatCurrency(item.remaining ?? item.amount ?? item.total)}</strong>
           </div>
         ))}
         {!items.length && <EmptyState title="Nada pendente aqui." />}
@@ -238,7 +238,14 @@ function CashBox({ title, source, allocated, available, monthAmount }) {
 
 function invoiceStatusLabel(status) {
   if (status === 'paid') return 'Paga';
-  if (status === 'divergent') return 'Divergente';
+  if (status === 'partial') return 'Parcial';
+  if (status === 'divergent' || status === 'overpaid') return 'Divergente';
   if (status === 'open') return 'Aberta';
   return 'Sem valor';
+}
+
+function invoiceStatusTone(status) {
+  if (status === 'paid') return 'positive';
+  if (status === 'partial' || status === 'divergent' || status === 'overpaid') return 'warning';
+  return 'muted';
 }

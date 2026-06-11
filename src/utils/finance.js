@@ -266,7 +266,7 @@ export function smartCashSummary(data, monthIndex, year) {
   const pendingCardFixedTotal = pendingFixedTotal - pendingCashFixedTotal;
   const invoices = cardInvoiceSummaries(data, monthIndex, year);
   const openInvoices = invoices.filter((item) => item.total > 0 && item.status !== 'paid');
-  const openInvoiceTotal = openInvoices.reduce((sum, item) => sum + Number(item.total || 0), 0);
+  const openInvoiceTotal = openInvoices.reduce((sum, item) => sum + Math.max(0, Number(item.remaining ?? item.total ?? 0)), 0);
   const goalsCash = allocationCashSummary(data, 'goals');
   const debtsCash = allocationCashSummary(data, 'debts');
   const reservedTotal = goalsCash.sourceTotal + debtsCash.sourceTotal;
@@ -362,13 +362,19 @@ export function financeAlerts(data, monthIndex, year, referenceDate = new Date()
 
   cash.openInvoices.forEach((item) => {
     const daysUntil = daysBetween(item.dueDate, reference);
+    const needsReview = ['divergent', 'overpaid'].includes(item.status);
+    const detail = item.status === 'partial'
+      ? 'Fatura com pagamento parcial'
+      : needsReview
+        ? 'Fatura com pagamento divergente'
+        : 'Fatura aberta';
     alerts.push({
       id: `invoice_${item.invoiceKey}`,
       type: 'invoice',
-      severity: item.status === 'divergent' || daysUntil < 0 ? 'high' : daysUntil <= 5 ? 'medium' : 'low',
+      severity: needsReview || daysUntil < 0 ? 'high' : daysUntil <= 5 ? 'medium' : 'low',
       title: item.card.name,
-      detail: item.status === 'divergent' ? 'Fatura com pagamento divergente' : 'Fatura aberta',
-      amount: Number(item.total || 0),
+      detail,
+      amount: needsReview ? Math.abs(Number(item.difference || 0)) : Math.max(0, Number(item.remaining ?? item.total ?? 0)),
       dueDate: item.dueDate,
       daysUntil,
       page: 'cards',
@@ -442,8 +448,8 @@ export function dataHealthInsights(data, monthIndex, year, referenceDate = new D
   const missingWalletRows = transactionsMissingWallet(data.transactions || [], data.wallet || []);
   const orphanWalletRows = orphanWalletEntries(data.transactions || [], data.wallet || []);
   const missingClosingMonths = previousActiveMonthsWithoutClosing(data, closingMonth, referenceDate);
-  const openInvoices = cash.openInvoices.filter((item) => item.status === 'open');
-  const divergentInvoices = cash.openInvoices.filter((item) => item.status === 'divergent');
+  const openInvoices = cash.openInvoices.filter((item) => ['open', 'partial'].includes(item.status));
+  const divergentInvoices = cash.openInvoices.filter((item) => ['divergent', 'overpaid'].includes(item.status));
   const overBudget = categoryStatuses.filter((item) => item.status === 'over');
   const warningBudget = categoryStatuses.filter((item) => item.status === 'warning');
   const checks = [
@@ -488,13 +494,13 @@ export function dataHealthInsights(data, monthIndex, year, referenceDate = new D
     }),
     buildHealthCheck({
       id: 'open-invoices',
-      title: 'Faturas abertas',
-      description: 'Cartoes com fatura do mes ainda sem pagamento registrado.',
+      title: 'Faturas abertas ou parciais',
+      description: 'Cartoes com fatura do mes ainda sem pagamento completo.',
       severity: openInvoices.length ? 'medium' : 'ok',
       count: openInvoices.length,
-      amount: openInvoices.reduce((sum, item) => sum + Number(item.total || 0), 0),
+      amount: openInvoices.reduce((sum, item) => sum + Math.max(0, Number(item.remaining ?? item.total ?? 0)), 0),
       page: 'cards',
-      details: openInvoices.slice(0, 3).map((item) => `${item.card.name} - ${formatCurrency(item.total)}`),
+      details: openInvoices.slice(0, 3).map((item) => `${item.card.name} - restante ${formatCurrency(item.remaining ?? item.total)}`),
     }),
     buildHealthCheck({
       id: 'divergent-invoices',
@@ -502,9 +508,9 @@ export function dataHealthInsights(data, monthIndex, year, referenceDate = new D
       description: 'Pagamentos de fatura com valor diferente do total calculado.',
       severity: divergentInvoices.length ? 'high' : 'ok',
       count: divergentInvoices.length,
-      amount: divergentInvoices.reduce((sum, item) => sum + Number(item.total || 0), 0),
+      amount: divergentInvoices.reduce((sum, item) => sum + Math.abs(Number(item.difference || 0)), 0),
       page: 'cards',
-      details: divergentInvoices.slice(0, 3).map((item) => `${item.card.name} - ${formatCurrency(item.total)}`),
+      details: divergentInvoices.slice(0, 3).map((item) => `${item.card.name} - diferenca ${formatCurrency(Math.abs(Number(item.difference || 0)))}`),
     }),
     buildHealthCheck({
       id: 'budgets',
@@ -696,25 +702,45 @@ export function cardInvoiceSummaries(data, monthIndex, year) {
       .reduce((sum, item) => sum + Number(item.parcelValue || 0), 0);
     const total = direct + installments;
     const invoiceKey = getInvoiceKey(card.id, invoiceMonth);
-    const paidEntry = (data.wallet || []).find((item) => item.source === 'invoice' && item.invoiceKey === invoiceKey);
-    const paymentMatchesInvoice = paidEntry && Math.abs(Number(paidEntry.amount || 0) - total) < 0.01;
+    const paidEntries = invoicePaymentEntries(data.wallet || [], invoiceKey);
+    const paidTotal = paidEntries.reduce((sum, item) => sum + Number(item.amount || 0), 0);
+    const difference = paidTotal - total;
+    const remaining = Math.max(0, total - paidTotal);
+    const paidEntry = paidEntries[0] || null;
+    const paymentMatchesInvoice = total > 0 && Math.abs(difference) < 0.01;
     let status = 'empty';
-    if (total > 0 && paidEntry && paymentMatchesInvoice) status = 'paid';
-    else if (total > 0 && paidEntry) status = 'divergent';
-    else if (total > 0) status = 'open';
+    if (total <= 0 && paidTotal > 0) status = 'overpaid';
+    else if (total > 0 && paymentMatchesInvoice) status = 'paid';
+    else if (total > 0 && paidTotal <= 0) status = 'open';
+    else if (total > 0 && paidTotal < total) status = 'partial';
+    else if (total > 0 && paidTotal > total) status = 'overpaid';
 
     return {
       card,
       direct,
       installments,
       total,
+      paidTotal,
+      remaining,
+      difference,
       dueDate: getInvoiceDueDate(card, invoiceMonth),
       invoiceKey,
       paidEntry,
+      paidEntries,
       paymentMatchesInvoice,
       status,
     };
   });
+}
+
+export function invoicePaymentEntries(wallet = [], invoiceKey) {
+  return (wallet || [])
+    .filter((item) => item.source === 'invoice' && item.invoiceKey === invoiceKey)
+    .sort((a, b) => (
+      (b.date || '').localeCompare(a.date || '')
+      || Number(b.createdAt || 0) - Number(a.createdAt || 0)
+      || String(b.id || '').localeCompare(String(a.id || ''))
+    ));
 }
 
 export function monthlyClosingId(closingMonth) {
@@ -757,7 +783,7 @@ export function monthlyClosingInsights(data, monthIndex, year) {
       id: 'cards',
       label: 'Faturas conferidas',
       done: openInvoices.length === 0,
-      detail: openInvoices.length ? `${openInvoices.length} aberta(s) ou divergente(s)` : 'Faturas em dia',
+      detail: openInvoices.length ? `${openInvoices.length} aberta(s), parcial(is) ou divergente(s)` : 'Faturas em dia',
     },
     {
       id: 'budgets',
@@ -835,6 +861,9 @@ export function buildMonthlyClosingSnapshot(data, monthIndex, year, note = '', n
         cardId: item.card.id,
         name: item.card.name,
         total: item.total,
+        paidTotal: item.paidTotal,
+        remaining: item.remaining,
+        difference: item.difference,
         dueDate: item.dueDate,
         status: item.status,
       })),
@@ -917,9 +946,9 @@ export function walletEntryForTransaction(transaction) {
   };
 }
 
-export function invoicePaymentEntry(card, invoiceMonth, amount) {
+export function invoicePaymentEntry(card, invoiceMonth, amount, id = '') {
   return {
-    id: `wallet_invoice_${card.id}_${invoiceMonth}`,
+    id: id || `wallet_invoice_${card.id}_${invoiceMonth}`,
     type: 'saida',
     desc: `[Fatura] ${card.name} - ${monthLabelFromKey(invoiceMonth)}`,
     amount: Number(amount || 0),

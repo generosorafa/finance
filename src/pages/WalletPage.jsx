@@ -84,7 +84,7 @@ export function WalletPage({ data, actions, currentMonth, currentYear, setPage }
         </div>
         <div className="cash-flow-grid">
           <CashFlowCard label="Saldo atual" value={cash.wallet} tone="info" />
-          <CashFlowCard label="Faturas abertas" value={cash.openInvoiceTotal} tone="negative" action="Cartoes" onClick={() => setPage('cards')} />
+          <CashFlowCard label="Faturas restantes" value={cash.openInvoiceTotal} tone="negative" action="Cartoes" onClick={() => setPage('cards')} />
           <CashFlowCard label="Fixos pendentes" value={cash.pendingFixedTotal} tone="negative" action="Fixos" onClick={() => setPage('fixed')} />
           <CashFlowCard label="Livre estimado" value={cash.freeEstimated} tone={cash.freeEstimated >= 0 ? 'positive' : 'negative'} />
         </div>
@@ -111,9 +111,9 @@ export function WalletPage({ data, actions, currentMonth, currentYear, setPage }
             <div className="list-row" key={item.invoiceKey}>
               <div className="row-main">
                 <strong>{item.card.name}</strong>
-                <span>Fatura · vence {item.dueDate}</span>
+                <span>Fatura {invoiceStatusLabel(item.status)} · vence {item.dueDate} · pago {formatCurrency(item.paidTotal)}</span>
               </div>
-              <strong className="money-negative">{formatCurrency(item.total)}</strong>
+              <strong className="money-negative">{formatCurrency(item.remaining)}</strong>
             </div>
           ))}
           {cash.pendingFixed.map((item) => (
@@ -216,4 +216,11 @@ function ReserveCard({ title, summary, onClick }) {
       <b>Disponivel {formatCurrency(summary.available)}</b>
     </button>
   );
+}
+
+function invoiceStatusLabel(status) {
+  if (status === 'partial') return 'parcial';
+  if (status === 'paid') return 'paga';
+  if (status === 'overpaid' || status === 'divergent') return 'divergente';
+  return 'aberta';
 }

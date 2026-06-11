@@ -2,17 +2,16 @@ import { Download } from 'lucide-react';
 import { StatCard } from '../components/ui.jsx';
 import { downloadText } from '../utils/download.js';
 import {
+  cardInvoiceSummaries,
   categoryBudgetForMonth,
   categorySpendingForMonth,
   exportFinanceCsv,
   fixedItemsForMonth,
   formatCurrency,
-  getInvoiceKey,
   monthKeyFromParts,
   monthLabel,
   summarizeMonth,
   transactionForFixedItemMonth,
-  transactionsForCardInvoice,
 } from '../utils/finance.js';
 
 export function ReportsPage({ data, currentMonth, currentYear }) {
@@ -37,15 +36,9 @@ export function ReportsPage({ data, currentMonth, currentYear }) {
         return `<li>${item.category.name}: ${formatCurrency(item.total)} de ${amount ? formatCurrency(amount) : 'sem alvo'}${percent}</li>`;
       })
       .join('');
-    const cardRows = data.cards.map((card) => {
-      const purchases = transactionsForCardInvoice(data.transactions, card, invoiceMonth)
-        .reduce((sum, item) => sum + Number(item.amount || 0), 0);
-      const installments = summary.installments
-        .filter((item) => item.cardId === card.id)
-        .reduce((sum, item) => sum + Number(item.parcelValue || 0), 0);
-      const paid = data.wallet.some((item) => item.source === 'invoice' && item.invoiceKey === getInvoiceKey(card.id, invoiceMonth));
-      return `<li>${card.name}: ${formatCurrency(purchases + installments)} (${paid ? 'paga' : 'aberta'})</li>`;
-    }).join('');
+    const cardRows = cardInvoiceSummaries(data, currentMonth, currentYear)
+      .map((item) => `<li>${item.card.name}: ${formatCurrency(item.total)} (${invoiceStatusLabel(item.status)}; pago ${formatCurrency(item.paidTotal)}; restante ${formatCurrency(item.remaining)})</li>`)
+      .join('');
     const html = `<!doctype html><html lang="pt-BR"><meta charset="utf-8"><title>Relatorio Finance</title><body style="font-family:Arial,sans-serif;padding:32px"><h1>Relatorio ${monthLabel(currentYear, currentMonth)}</h1><p>Receitas: ${formatCurrency(summary.receitas)}</p><p>Despesas: ${formatCurrency(summary.despesas + summary.parcelas)}</p><p>Saldo: ${formatCurrency(summary.saldo)}</p><h2>Transacoes</h2><ul>${summary.monthTransactions.map((item) => `<li>${item.date} - ${item.desc} - ${formatCurrency(item.amount)}</li>`).join('')}</ul><h2>Alvos por categoria</h2><ul>${budgetRows}</ul><h2>Fixos e assinaturas</h2><ul>${fixedRows}</ul><h2>Parcelamentos</h2><ul>${summary.installments.map((item) => `<li>${item.desc} - parcela ${item.paidCount}/${item.parcels} - ${formatCurrency(item.parcelValue)}</li>`).join('')}</ul><h2>Cartoes</h2><ul>${cardRows}</ul></body></html>`;
     downloadText(`relatorio-finance-${currentYear}-${String(currentMonth + 1).padStart(2, '0')}.html`, html, 'text/html;charset=utf-8');
   }
@@ -77,4 +70,12 @@ export function ReportsPage({ data, currentMonth, currentYear }) {
       </section>
     </div>
   );
+}
+
+function invoiceStatusLabel(status) {
+  if (status === 'paid') return 'paga';
+  if (status === 'partial') return 'parcial';
+  if (status === 'divergent' || status === 'overpaid') return 'divergente';
+  if (status === 'open') return 'aberta';
+  return 'sem valor';
 }

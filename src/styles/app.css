@@ -1189,6 +1189,106 @@ select:focus {
   color: var(--muted);
 }
 
+.invoice-card {
+  align-content: start;
+}
+
+.invoice-card.selected {
+  background: linear-gradient(180deg, rgba(100, 167, 255, 0.08), var(--surface-2));
+  border-color: var(--info) !important;
+}
+
+.invoice-card-header {
+  align-items: flex-start;
+  display: flex;
+  gap: 10px;
+  justify-content: space-between;
+  padding-right: 74px;
+}
+
+.invoice-card-header .pill {
+  flex: 0 0 auto;
+}
+
+.invoice-mini-grid,
+.invoice-metric-grid {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.invoice-mini-grid span,
+.invoice-metric {
+  min-width: 0;
+  padding: 9px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.025);
+}
+
+.invoice-mini-grid span {
+  color: var(--muted);
+  font-size: 0.78rem;
+  margin: 0;
+}
+
+.invoice-mini-grid strong,
+.invoice-metric strong {
+  display: block;
+  color: var(--text);
+  margin-top: 4px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.invoice-actions,
+.invoice-payment-form {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.invoice-actions .primary-button,
+.invoice-actions .secondary-button {
+  flex: 1 1 148px;
+}
+
+.invoice-detail {
+  border-top: 1px solid var(--line);
+  display: grid;
+  gap: 16px;
+  padding-top: 18px;
+}
+
+.invoice-metric-grid {
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+}
+
+.invoice-metric span {
+  color: var(--muted);
+  display: block;
+  font-size: 0.74rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.invoice-payment-form .field {
+  flex: 1 1 240px;
+}
+
+.invoice-detail-grid {
+  display: grid;
+  gap: 14px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.invoice-list-block {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+}
+
 .credit-card > .icon-button {
   position: absolute;
   right: 12px;
@@ -1430,6 +1530,8 @@ select:focus {
   .form-grid,
   .form-grid.compact,
   .health-ok-grid,
+  .invoice-metric-grid,
+  .invoice-detail-grid,
   .mapping-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -1452,7 +1554,10 @@ select:focus {
   .card-grid,
   .chip-grid,
   .form-grid,
-  .form-grid.compact {
+  .form-grid.compact,
+  .invoice-mini-grid,
+  .invoice-metric-grid,
+  .invoice-detail-grid {
     grid-template-columns: 1fr;
   }
 
@@ -1467,6 +1572,12 @@ select:focus {
 
   .dashboard-actions,
   .dashboard-actions .primary-button {
+    width: 100%;
+  }
+
+  .invoice-actions .primary-button,
+  .invoice-actions .secondary-button,
+  .invoice-payment-form .primary-button {
     width: 100%;
   }
 
