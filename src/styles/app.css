@@ -1261,6 +1261,10 @@ select:focus {
   padding-top: 18px;
 }
 
+.invoice-detail .pill {
+  align-self: flex-start;
+}
+
 .invoice-metric-grid {
   grid-template-columns: repeat(6, minmax(0, 1fr));
 }
