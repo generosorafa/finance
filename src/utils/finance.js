@@ -432,6 +432,143 @@ export function financeAlerts(data, monthIndex, year, referenceDate = new Date()
   ));
 }
 
+export function dataHealthInsights(data, monthIndex, year, referenceDate = new Date()) {
+  const closingMonth = monthKeyFromParts(year, monthIndex);
+  const cash = smartCashSummary(data, monthIndex, year);
+  const categoryStatuses = categoryBudgetStatuses(data, monthIndex, year);
+  const duplicateGroups = possibleDuplicateTransactions(data.transactions || []);
+  const invalidCategoryTransactions = transactionsWithInvalidCategory(data.transactions || [], data.categories || []);
+  const invalidTransactionRows = invalidTransactions(data.transactions || []);
+  const missingWalletRows = transactionsMissingWallet(data.transactions || [], data.wallet || []);
+  const orphanWalletRows = orphanWalletEntries(data.transactions || [], data.wallet || []);
+  const missingClosingMonths = previousActiveMonthsWithoutClosing(data, closingMonth, referenceDate);
+  const openInvoices = cash.openInvoices.filter((item) => item.status === 'open');
+  const divergentInvoices = cash.openInvoices.filter((item) => item.status === 'divergent');
+  const overBudget = categoryStatuses.filter((item) => item.status === 'over');
+  const warningBudget = categoryStatuses.filter((item) => item.status === 'warning');
+  const checks = [
+    buildHealthCheck({
+      id: 'duplicates',
+      title: 'Possiveis duplicadas',
+      description: 'Transacoes com mesma data, descricao, tipo e valor.',
+      severity: duplicateGroups.length ? 'medium' : 'ok',
+      count: duplicateGroups.reduce((sum, group) => sum + group.items.length - 1, 0),
+      amount: duplicateGroups.reduce((sum, group) => sum + group.amount, 0),
+      page: 'transactions',
+      details: duplicateGroups.slice(0, 3).map((group) => `${group.items[0].date} - ${group.items[0].desc} (${group.items.length}x)`),
+    }),
+    buildHealthCheck({
+      id: 'invalid-categories',
+      title: 'Categorias para revisar',
+      description: 'Transacoes sem categoria valida no cadastro atual.',
+      severity: invalidCategoryTransactions.length ? 'medium' : 'ok',
+      count: invalidCategoryTransactions.length,
+      amount: invalidCategoryTransactions.reduce((sum, item) => sum + Number(item.amount || 0), 0),
+      page: 'transactions',
+      details: invalidCategoryTransactions.slice(0, 3).map((item) => `${item.date || 'sem data'} - ${item.desc || 'sem descricao'}`),
+    }),
+    buildHealthCheck({
+      id: 'invalid-transactions',
+      title: 'Lancamentos incompletos',
+      description: 'Transacoes com data, descricao ou valor invalido.',
+      severity: invalidTransactionRows.length ? 'high' : 'ok',
+      count: invalidTransactionRows.length,
+      page: 'transactions',
+      details: invalidTransactionRows.slice(0, 3).map((item) => item.desc || item.id),
+    }),
+    buildHealthCheck({
+      id: 'pending-fixed',
+      title: 'Fixos e assinaturas pendentes',
+      description: 'Compromissos do mes ainda nao lancados.',
+      severity: cash.pendingFixed.length ? 'high' : 'ok',
+      count: cash.pendingFixed.length,
+      amount: cash.pendingFixedTotal,
+      page: 'fixed',
+      details: cash.pendingFixed.slice(0, 3).map((item) => `${item.dueDate} - ${item.name}`),
+    }),
+    buildHealthCheck({
+      id: 'open-invoices',
+      title: 'Faturas abertas',
+      description: 'Cartoes com fatura do mes ainda sem pagamento registrado.',
+      severity: openInvoices.length ? 'medium' : 'ok',
+      count: openInvoices.length,
+      amount: openInvoices.reduce((sum, item) => sum + Number(item.total || 0), 0),
+      page: 'cards',
+      details: openInvoices.slice(0, 3).map((item) => `${item.card.name} - ${formatCurrency(item.total)}`),
+    }),
+    buildHealthCheck({
+      id: 'divergent-invoices',
+      title: 'Faturas divergentes',
+      description: 'Pagamentos de fatura com valor diferente do total calculado.',
+      severity: divergentInvoices.length ? 'high' : 'ok',
+      count: divergentInvoices.length,
+      amount: divergentInvoices.reduce((sum, item) => sum + Number(item.total || 0), 0),
+      page: 'cards',
+      details: divergentInvoices.slice(0, 3).map((item) => `${item.card.name} - ${formatCurrency(item.total)}`),
+    }),
+    buildHealthCheck({
+      id: 'budgets',
+      title: 'Alvos de categoria',
+      description: 'Categorias perto ou acima do alvo do mes.',
+      severity: overBudget.length ? 'high' : warningBudget.length ? 'medium' : 'ok',
+      count: overBudget.length + warningBudget.length,
+      amount: [...overBudget, ...warningBudget].reduce((sum, item) => sum + Number(item.total || 0), 0),
+      page: 'categories',
+      details: [...overBudget, ...warningBudget].slice(0, 3).map((item) => `${item.category.name} - ${item.percent.toFixed(0)}%`),
+    }),
+    buildHealthCheck({
+      id: 'reserved-cash',
+      title: 'Caixa reservado sem destino',
+      description: 'Valores de metas ou dividas ainda nao distribuidos.',
+      severity: cash.reservedAvailable > 0 ? 'low' : 'ok',
+      count: cash.reservedAvailable > 0 ? 1 : 0,
+      amount: cash.reservedAvailable,
+      page: 'goals',
+      details: cash.reservedAvailable > 0 ? [`${formatCurrency(cash.reservedAvailable)} aguardando distribuicao`] : [],
+    }),
+    buildHealthCheck({
+      id: 'missing-closings',
+      title: 'Meses sem fechamento',
+      description: 'Meses anteriores com movimento e sem fechamento salvo.',
+      severity: missingClosingMonths.length ? 'medium' : 'ok',
+      count: missingClosingMonths.length,
+      page: 'closing',
+      details: missingClosingMonths.slice(0, 4).map((item) => monthLabelFromKey(item)),
+    }),
+    buildHealthCheck({
+      id: 'wallet-links',
+      title: 'Carteira sincronizada',
+      description: 'Entradas e saidas ligadas a transacoes variaveis.',
+      severity: missingWalletRows.length || orphanWalletRows.length ? 'medium' : 'ok',
+      count: missingWalletRows.length + orphanWalletRows.length,
+      page: 'wallet',
+      details: [
+        ...missingWalletRows.slice(0, 2).map((item) => `Sem carteira: ${item.desc}`),
+        ...orphanWalletRows.slice(0, 2).map((item) => `Sem transacao: ${item.desc}`),
+      ],
+    }),
+  ];
+
+  const problemChecks = checks.filter((item) => item.severity !== 'ok');
+  const status = problemChecks.some((item) => item.severity === 'high')
+    ? 'risk'
+    : problemChecks.length
+      ? 'attention'
+      : 'ok';
+
+  return {
+    status,
+    month: closingMonth,
+    totalChecks: checks.length,
+    issueCount: problemChecks.reduce((sum, item) => sum + item.count, 0),
+    highCount: problemChecks.filter((item) => item.severity === 'high').length,
+    mediumCount: problemChecks.filter((item) => item.severity === 'medium').length,
+    lowCount: problemChecks.filter((item) => item.severity === 'low').length,
+    checks,
+    problemChecks,
+  };
+}
+
 export function findAutomationRule(rules, description) {
   const text = normalizeText(description);
   if (!text) return null;
@@ -444,6 +581,95 @@ export function findAutomationRule(rules, description) {
       || Number(a.createdAt || 0) - Number(b.createdAt || 0)
     ))
     .find((rule) => text.includes(normalizeText(rule.matchText))) || null;
+}
+
+function buildHealthCheck({ id, title, description, severity, count = 0, amount = 0, page, details = [] }) {
+  return {
+    id,
+    title,
+    description,
+    severity,
+    count,
+    amount,
+    page,
+    details,
+    ok: severity === 'ok',
+  };
+}
+
+function possibleDuplicateTransactions(transactions) {
+  const groups = new Map();
+
+  transactions.forEach((item) => {
+    const key = [
+      item.date || '',
+      normalizeText(item.desc),
+      item.type || '',
+      Number(item.amount || 0).toFixed(2),
+    ].join('|');
+    groups.set(key, [...(groups.get(key) || []), item]);
+  });
+
+  return [...groups.values()]
+    .filter((items) => items.length > 1)
+    .map((items) => ({
+      key: items[0].id,
+      items,
+      amount: Number(items[0].amount || 0) * (items.length - 1),
+    }));
+}
+
+function transactionsWithInvalidCategory(transactions, categories) {
+  const categoryIds = new Set(categories.map((item) => item.id));
+  return transactions.filter((item) => !item.category || !categoryIds.has(item.category));
+}
+
+function invalidTransactions(transactions) {
+  return transactions.filter((item) => (
+    !['receita', 'despesa'].includes(item.type)
+    || !item.desc
+    || !item.date
+    || !Number.isFinite(Number(item.amount))
+    || Number(item.amount) <= 0
+  ));
+}
+
+function transactionsMissingWallet(transactions, wallet) {
+  const walletIds = new Set(wallet.map((item) => item.id));
+  return transactions
+    .filter((item) => walletEntryForTransaction(item))
+    .filter((item) => !walletIds.has(item.walletEntryId || `wallet_tx_${item.id}`));
+}
+
+function orphanWalletEntries(transactions, wallet) {
+  const transactionIds = new Set(transactions.map((item) => item.id));
+  return wallet.filter((item) => item.source === 'transaction' && item.transactionId && !transactionIds.has(item.transactionId));
+}
+
+function previousActiveMonthsWithoutClosing(data, currentMonthKey, referenceDate) {
+  const closingMonths = new Set((data.monthlyClosings || []).map((item) => item.month));
+  const months = previousMonthKeys(currentMonthKey, 6, referenceDate);
+
+  return months.filter((key) => {
+    if (closingMonths.has(key)) return false;
+    const { year, monthIndex } = monthPartsFromKey(key);
+    const summary = summarizeMonth(data, monthIndex, year);
+    const fixedRows = fixedItemsForMonth(data.fixedItems || [], monthIndex, year);
+    return summary.transactionCount > 0 || summary.installments.length > 0 || fixedRows.length > 0;
+  });
+}
+
+function previousMonthKeys(currentMonthKey, count, referenceDate) {
+  const { year, monthIndex } = monthPartsFromKey(currentMonthKey || monthKey(referenceDate));
+  const date = new Date(year, monthIndex, 1, 12);
+  const keys = [];
+
+  for (let index = 1; index <= count; index += 1) {
+    date.setMonth(date.getMonth() - 1);
+    keys.push(monthKey(date));
+  }
+
+  return keys;
 }
 
 export function applyAutomationRule(transaction, rule) {

@@ -827,6 +827,107 @@ select:focus {
   white-space: nowrap;
 }
 
+.health-list {
+  display: grid;
+  gap: 10px;
+}
+
+.health-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  min-width: 0;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface-2);
+}
+
+.health-row.high {
+  border-color: rgba(255, 116, 109, 0.45);
+}
+
+.health-row.medium {
+  border-color: rgba(225, 196, 92, 0.35);
+}
+
+.health-row.low {
+  border-color: rgba(100, 167, 255, 0.28);
+}
+
+.health-row.high > svg {
+  color: var(--negative);
+}
+
+.health-row.medium > svg,
+.health-row.low > svg {
+  color: var(--accent);
+}
+
+.health-details {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.health-details small {
+  max-width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--muted);
+  padding: 4px 8px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.health-metric {
+  display: grid;
+  gap: 2px;
+  min-width: 90px;
+  text-align: right;
+}
+
+.health-metric strong {
+  color: var(--text);
+}
+
+.health-metric span {
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+
+.health-ok-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.health-ok-card {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-width: 0;
+  padding: 11px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface-2);
+  color: var(--muted);
+}
+
+.health-ok-card svg {
+  color: var(--positive);
+  flex: 0 0 auto;
+}
+
+.health-ok-card span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .bar-label {
   display: flex;
   justify-content: space-between;
@@ -1328,6 +1429,7 @@ select:focus {
   .chip-grid,
   .form-grid,
   .form-grid.compact,
+  .health-ok-grid,
   .mapping-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -1405,9 +1507,22 @@ select:focus {
     flex-direction: column;
   }
 
-  .alert-row {
+  .alert-row,
+  .health-row {
     align-items: stretch;
     flex-direction: column;
+  }
+
+  .health-metric {
+    text-align: left;
+  }
+
+  .health-row .secondary-button {
+    width: 100%;
+  }
+
+  .health-ok-grid {
+    grid-template-columns: 1fr;
   }
 
   .restore-summary-row {

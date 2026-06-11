@@ -15,6 +15,7 @@ import {
   Package,
   PieChart,
   Settings,
+  ShieldCheck,
   Shirt,
   Smartphone,
   Target,
@@ -24,6 +25,7 @@ import {
 
 export const NAV_ITEMS = [
   { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
+  { id: 'health', label: 'Conferencia', icon: ShieldCheck },
   { id: 'transactions', label: 'Transacoes', icon: ListChecks },
   { id: 'fixed', label: 'Fixos', icon: CalendarCheck },
   { id: 'closing', label: 'Fechamento', icon: ClipboardCheck },

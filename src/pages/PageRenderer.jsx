@@ -3,6 +3,7 @@ import { CardsPage } from './CardsPage.jsx';
 import { CategoriesPage } from './CategoriesPage.jsx';
 import { DashboardPage } from './DashboardPage.jsx';
 import { FixedItemsPage } from './FixedItemsPage.jsx';
+import { HealthPage } from './HealthPage.jsx';
 import { MonthlyClosingPage } from './MonthlyClosingPage.jsx';
 import { ReportsPage } from './ReportsPage.jsx';
 import { SettingsPage } from './SettingsPage.jsx';
@@ -11,6 +12,7 @@ import { WalletPage } from './WalletPage.jsx';
 
 export function PageRenderer(props) {
   if (props.page === 'transactions') return <TransactionsPage {...props} />;
+  if (props.page === 'health') return <HealthPage {...props} />;
   if (props.page === 'fixed') return <FixedItemsPage {...props} />;
   if (props.page === 'closing') return <MonthlyClosingPage {...props} />;
   if (props.page === 'cards') return <CardsPage {...props} />;

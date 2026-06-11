@@ -8,6 +8,7 @@ import {
   categoryBudgetStatuses,
   cardInvoiceSummaries,
   categorySpendingForMonth,
+  dataHealthInsights,
   financeAlerts,
   applyAutomationRule,
   findAutomationRule,
@@ -321,6 +322,46 @@ test('financeAlerts prioritizes overdue fixed items, open invoices and category 
   assert.equal(alerts[0].severity, 'high');
   assert.ok(alerts.some((item) => item.type === 'invoice'));
   assert.ok(alerts.some((item) => item.type === 'budget' && item.severity === 'high'));
+});
+
+test('dataHealthInsights summarizes data issues for review', () => {
+  const data = {
+    settings: {},
+    categories: [
+      { id: 'cat_food', name: 'Alimentacao' },
+      { id: 'cat_goals', name: 'Metas', special: 'goals' },
+    ],
+    categoryBudgets: [{ id: 'budget_food', categoryId: 'cat_food', month: '2026-06', amount: 100 }],
+    transactions: [
+      { id: 'dup_a', type: 'despesa', desc: 'Mercado', amount: 80, date: '2026-06-03', category: 'cat_food', payment: 'PIX', walletEntryId: 'wallet_tx_dup_a' },
+      { id: 'dup_b', type: 'despesa', desc: 'Mercado', amount: 80, date: '2026-06-03', category: 'cat_food', payment: 'PIX', walletEntryId: 'wallet_tx_dup_b' },
+      { id: 'bad_category', type: 'despesa', desc: 'Algo', amount: 20, date: '2026-06-04', category: 'missing', payment: 'PIX', walletEntryId: 'wallet_tx_bad_category' },
+      { id: 'card', type: 'despesa', desc: 'Online', amount: 150, date: '2026-06-05', category: 'cat_food', payment: 'CC::card_1', linkedCardId: 'card_1' },
+      { id: 'goal_cash', type: 'despesa', desc: 'Meta', amount: 200, date: '2026-06-06', category: 'cat_goals', payment: 'PIX', walletEntryId: 'wallet_tx_goal_cash' },
+      { id: 'may', type: 'receita', desc: 'Salario', amount: 1000, date: '2026-05-01', category: 'cat_food', payment: 'PIX', walletEntryId: 'wallet_tx_may' },
+    ],
+    wallet: [
+      { id: 'wallet_tx_dup_a', source: 'transaction', transactionId: 'dup_a', type: 'saida', amount: 80 },
+      { id: 'wallet_tx_bad_category', source: 'transaction', transactionId: 'bad_category', type: 'saida', amount: 20 },
+      { id: 'wallet_tx_goal_cash', source: 'transaction', transactionId: 'goal_cash', type: 'saida', amount: 200 },
+      { id: 'wallet_tx_may', source: 'transaction', transactionId: 'may', type: 'entrada', amount: 1000 },
+      { id: 'wallet_invoice_card_1_2026-06', source: 'invoice', invoiceKey: 'card_1::2026-06', type: 'saida', amount: 90 },
+    ],
+    fixedItems: [{ id: 'rent', name: 'Aluguel', amount: 1000, dueDay: 5, active: true, startMonth: '2026-01', payment: 'PIX' }],
+    installments: [],
+    cards: [{ id: 'card_1', name: 'Visa', closeDay: 10, dueDay: 20 }],
+    allocations: [{ id: 'alloc_1', type: 'goals', targetId: 'goal_1', amount: 50 }],
+    monthlyClosings: [],
+  };
+  const health = dataHealthInsights(data, 5, 2026, '2026-06-10');
+
+  assert.equal(health.status, 'risk');
+  assert.equal(health.checks.find((item) => item.id === 'duplicates').count, 1);
+  assert.equal(health.checks.find((item) => item.id === 'invalid-categories').count, 1);
+  assert.equal(health.checks.find((item) => item.id === 'pending-fixed').count, 1);
+  assert.equal(health.checks.find((item) => item.id === 'divergent-invoices').count, 1);
+  assert.equal(health.checks.find((item) => item.id === 'wallet-links').count, 1);
+  assert.ok(health.checks.find((item) => item.id === 'missing-closings').count >= 1);
 });
 
 test('automation rules match descriptions without accents and apply transaction fields', () => {
