@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   AlertTriangle,
   ArrowDownRight,
@@ -279,14 +279,31 @@ function ProjectionCard({ label, value, tone }) {
 }
 
 function AnnualBars({ currentMonth, items, selectedMonth, onSelect }) {
+  const activeRef = useRef(null);
   const maxValue = Math.max(...items.flatMap((item) => [item.receitas, item.despesas]), 1);
   const selected = items[selectedMonth] || items[currentMonth];
+  const activeMonth = selected.monthIndex;
   const axisMax = niceAxisMax(maxValue);
   const axisLabels = [axisMax, axisMax * 0.75, axisMax * 0.5, axisMax * 0.25, 0];
 
+  useEffect(() => {
+    activeRef.current?.scrollIntoView({ block: 'nearest', inline: 'center' });
+  }, [activeMonth]);
+
   return (
-    <div className="annual-chart">
-      <div className="annual-compact">
+    <div className="annual-chart annual-chart-modern">
+      <div className="annual-modern-head">
+        <div className="chart-legend">
+          <span><i className="legend-dot income" /> Receitas</span>
+          <span><i className="legend-dot expense" /> Despesas</span>
+        </div>
+        <div className={`annual-selected-chip ${selected.saldo >= 0 ? 'positive' : 'negative'}`}>
+          <span>{MONTHS[selected.monthIndex]}</span>
+          <strong>{formatCurrency(selected.saldo)}</strong>
+        </div>
+      </div>
+
+      <div className="annual-compact annual-modern-grid">
         <div className="annual-axis" aria-hidden="true">
           {axisLabels.map((value) => <span key={value}>{shortCurrency(value)}</span>)}
         </div>
@@ -295,33 +312,36 @@ function AnnualBars({ currentMonth, items, selectedMonth, onSelect }) {
             {axisLabels.map((value) => <span key={value} />)}
           </div>
           <div className="annual-groups">
-            {items.map((item) => (
-              <button
-                className={`annual-group ${item.monthIndex === selectedMonth ? 'active' : ''} ${item.monthIndex === currentMonth ? 'current' : ''}`}
-                key={item.monthIndex}
-                onClick={() => onSelect(item.monthIndex)}
-                title={`${MONTHS[item.monthIndex]}: receitas ${formatCurrency(item.receitas)} · despesas ${formatCurrency(item.despesas)}`}
-                type="button"
-              >
-                <div className="annual-bar-pair">
-                  <span className="annual-bar income" style={{ height: `${barHeight(item.receitas, axisMax)}%` }} />
-                  <span className="annual-bar expense" style={{ height: `${barHeight(item.despesas, axisMax)}%` }} />
-                </div>
-                <strong>{MONTHS[item.monthIndex].slice(0, 3)}</strong>
-              </button>
-            ))}
+            {items.map((item) => {
+              const isActive = item.monthIndex === activeMonth;
+              const edge = item.monthIndex <= 1 ? 'edge-start' : item.monthIndex >= 10 ? 'edge-end' : '';
+              return (
+                <button
+                  aria-label={`${MONTHS[item.monthIndex]}: receitas ${formatCurrency(item.receitas)}, despesas ${formatCurrency(item.despesas)}`}
+                  className={`annual-group ${isActive ? 'active' : ''} ${edge} ${item.monthIndex === currentMonth ? 'current' : ''}`}
+                  key={item.monthIndex}
+                  onClick={() => onSelect(item.monthIndex)}
+                  ref={isActive ? activeRef : null}
+                  title={`${MONTHS[item.monthIndex]}: receitas ${formatCurrency(item.receitas)} · despesas ${formatCurrency(item.despesas)}`}
+                  type="button"
+                >
+                  {isActive && (
+                    <div className="annual-tooltip">
+                      <span>{MONTHS[item.monthIndex]}</span>
+                      <strong className="income">Receitas {formatCurrency(item.receitas)}</strong>
+                      <strong className="expense">Despesas {formatCurrency(item.despesas)}</strong>
+                    </div>
+                  )}
+                  <div className="annual-bar-pair">
+                    <span className="annual-bar income" style={{ height: `${barHeight(item.receitas, axisMax)}%` }} />
+                    <span className="annual-bar expense" style={{ height: `${barHeight(item.despesas, axisMax)}%` }} />
+                  </div>
+                  <strong>{MONTHS[item.monthIndex].slice(0, 3)}</strong>
+                </button>
+              );
+            })}
           </div>
         </div>
-      </div>
-      <div className="chart-summary">
-        <strong>{MONTHS[selected.monthIndex]}</strong>
-        <span>Receitas {formatCurrency(selected.receitas)}</span>
-        <span>Despesas {formatCurrency(selected.despesas)}</span>
-        <span>Saldo {formatCurrency(selected.saldo)}</span>
-      </div>
-      <div className="chart-legend">
-        <span><i className="legend-dot income" /> Receitas</span>
-        <span><i className="legend-dot expense" /> Despesas</span>
       </div>
     </div>
   );
@@ -407,8 +427,8 @@ function CategoryDonut({ items, total }) {
 }
 
 function barHeight(value, maxValue) {
-  if (!value) return 4;
-  return Math.max(8, (value / maxValue) * 100);
+  if (!value) return 0;
+  return Math.max(7, (value / maxValue) * 100);
 }
 
 function niceAxisMax(value) {
