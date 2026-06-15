@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   AlertTriangle,
   ArrowDownRight,
@@ -68,6 +68,10 @@ export function DashboardPage({ data, actions, paymentMethods, currentMonth, cur
       ? 'Mes no azul'
       : 'Mes pede atencao';
 
+  useEffect(() => {
+    setSelectedChartMonth(currentMonth);
+  }, [currentMonth, currentYear]);
+
   return (
     <div className="content-grid dashboard-grid">
       <section className={`dashboard-hero span-2 ${dashboardTone}`}>
@@ -99,7 +103,7 @@ export function DashboardPage({ data, actions, paymentMethods, currentMonth, cur
         <div className="panel-header">
           <div>
             <h2>Receitas x despesas em {currentYear}</h2>
-            <p>Comparativo mensal com parcelas consideradas nas despesas.</p>
+            <p>Comparativo de 6 meses com parcelas consideradas nas despesas.</p>
           </div>
           <div className="dashboard-ratio">
             <span>Uso da renda</span>
@@ -279,31 +283,18 @@ function ProjectionCard({ label, value, tone }) {
 }
 
 function AnnualBars({ currentMonth, items, selectedMonth, onSelect }) {
-  const activeRef = useRef(null);
-  const maxValue = Math.max(...items.flatMap((item) => [item.receitas, item.despesas]), 1);
-  const selected = items[selectedMonth] || items[currentMonth];
+  const visibleItems = sixMonthWindow(items, currentMonth);
+  const maxValue = Math.max(...visibleItems.flatMap((item) => [item.receitas, item.despesas]), 1);
+  const selected = visibleItems.find((item) => item.monthIndex === selectedMonth)
+    || visibleItems.find((item) => item.monthIndex === currentMonth)
+    || visibleItems.at(-1);
   const activeMonth = selected.monthIndex;
   const axisMax = niceAxisMax(maxValue);
   const axisLabels = [axisMax, axisMax * 0.75, axisMax * 0.5, axisMax * 0.25, 0];
 
-  useEffect(() => {
-    activeRef.current?.scrollIntoView({ block: 'nearest', inline: 'center' });
-  }, [activeMonth]);
-
   return (
-    <div className="annual-chart annual-chart-modern">
-      <div className="annual-modern-head">
-        <div className="chart-legend">
-          <span><i className="legend-dot income" /> Receitas</span>
-          <span><i className="legend-dot expense" /> Despesas</span>
-        </div>
-        <div className={`annual-selected-chip ${selected.saldo >= 0 ? 'positive' : 'negative'}`}>
-          <span>{MONTHS[selected.monthIndex]}</span>
-          <strong>{formatCurrency(selected.saldo)}</strong>
-        </div>
-      </div>
-
-      <div className="annual-compact annual-modern-grid">
+    <div className="annual-chart annual-chart-clean">
+      <div className="annual-compact">
         <div className="annual-axis" aria-hidden="true">
           {axisLabels.map((value) => <span key={value}>{shortCurrency(value)}</span>)}
         </div>
@@ -312,24 +303,29 @@ function AnnualBars({ currentMonth, items, selectedMonth, onSelect }) {
             {axisLabels.map((value) => <span key={value} />)}
           </div>
           <div className="annual-groups">
-            {items.map((item) => {
+            {visibleItems.map((item, index) => {
               const isActive = item.monthIndex === activeMonth;
-              const edge = item.monthIndex <= 1 ? 'edge-start' : item.monthIndex >= 10 ? 'edge-end' : '';
+              const edge = index <= 1 ? 'edge-start' : index >= visibleItems.length - 2 ? 'edge-end' : '';
               return (
                 <button
                   aria-label={`${MONTHS[item.monthIndex]}: receitas ${formatCurrency(item.receitas)}, despesas ${formatCurrency(item.despesas)}`}
                   className={`annual-group ${isActive ? 'active' : ''} ${edge} ${item.monthIndex === currentMonth ? 'current' : ''}`}
                   key={item.monthIndex}
                   onClick={() => onSelect(item.monthIndex)}
-                  ref={isActive ? activeRef : null}
                   title={`${MONTHS[item.monthIndex]}: receitas ${formatCurrency(item.receitas)} · despesas ${formatCurrency(item.despesas)}`}
                   type="button"
                 >
                   {isActive && (
                     <div className="annual-tooltip">
-                      <span>{MONTHS[item.monthIndex]}</span>
-                      <strong className="income">Receitas {formatCurrency(item.receitas)}</strong>
-                      <strong className="expense">Despesas {formatCurrency(item.despesas)}</strong>
+                      <strong className="annual-tooltip-month">{MONTHS[item.monthIndex]}</strong>
+                      <div className="annual-tooltip-row">
+                        <span><i className="legend-dot income" />Receita</span>
+                        <strong>{formatCurrency(item.receitas)}</strong>
+                      </div>
+                      <div className="annual-tooltip-row">
+                        <span><i className="legend-dot expense" />Despesa</span>
+                        <strong>{formatCurrency(item.despesas)}</strong>
+                      </div>
                     </div>
                   )}
                   <div className="annual-bar-pair">
@@ -341,6 +337,16 @@ function AnnualBars({ currentMonth, items, selectedMonth, onSelect }) {
               );
             })}
           </div>
+        </div>
+      </div>
+      <div className="annual-footer">
+        <div className="chart-legend">
+          <span><i className="legend-dot income" /> Receita</span>
+          <span><i className="legend-dot expense" /> Despesa</span>
+        </div>
+        <div className={`annual-selected-chip ${selected.saldo >= 0 ? 'positive' : 'negative'}`}>
+          <span>Saldo em {MONTHS[selected.monthIndex].slice(0, 3)}</span>
+          <strong>{formatCurrency(selected.saldo)}</strong>
         </div>
       </div>
     </div>
@@ -437,6 +443,11 @@ function niceAxisMax(value) {
   const normalized = amount / magnitude;
   const rounded = normalized <= 2 ? 2 : normalized <= 5 ? 5 : 10;
   return rounded * magnitude;
+}
+
+function sixMonthWindow(items, currentMonth) {
+  const start = Math.min(Math.max(currentMonth - 5, 0), Math.max(0, items.length - 6));
+  return items.slice(start, start + 6);
 }
 
 function shortCurrency(value) {
