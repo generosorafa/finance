@@ -1,6 +1,16 @@
 import { useState } from 'react';
-import { AlertTriangle, Info, Plus, X } from 'lucide-react';
-import { CategoryBars, EmptyState, StatCard } from '../components/ui.jsx';
+import {
+  AlertTriangle,
+  ArrowDownRight,
+  ArrowUpRight,
+  CalendarCheck,
+  Info,
+  Plus,
+  TrendingUp,
+  WalletCards,
+  X,
+} from 'lucide-react';
+import { CategoryBars, EmptyState } from '../components/ui.jsx';
 import { TransactionForm } from '../components/transactions/TransactionForm.jsx';
 import { TransactionList } from '../components/transactions/TransactionList.jsx';
 import { MONTHS } from '../data/defaults.js';
@@ -47,27 +57,53 @@ export function DashboardPage({ data, actions, paymentMethods, currentMonth, cur
     .filter((item) => item.total > 0)
     .sort((a, b) => b.total - a.total);
   const categoryTotal = summary.despesas + summary.parcelas;
+  const totalExpenses = summary.despesas + summary.parcelas;
+  const expenseRatio = summary.receitas > 0 ? Math.min(999, (totalExpenses / summary.receitas) * 100) : 0;
+  const monthName = MONTHS[currentMonth];
+  const hasHighAlert = alerts.some((item) => item.severity === 'high');
+  const dashboardTone = hasHighAlert ? 'warning' : summary.saldo >= 0 ? 'positive' : 'negative';
+  const heroTitle = hasHighAlert
+    ? 'Atencao no mes'
+    : summary.saldo >= 0
+      ? 'Mes no azul'
+      : 'Mes pede atencao';
 
   return (
-    <div className="content-grid">
-      <section className="stat-grid span-2">
-        <StatCard label="Receitas" value={formatCurrency(summary.receitas)} tone="positive" />
-        <StatCard label="Despesas" value={formatCurrency(summary.despesas + summary.parcelas)} tone="negative" />
-        <StatCard label="Saldo do mes" value={formatCurrency(summary.saldo)} tone={summary.saldo >= 0 ? 'positive' : 'negative'} />
-        <StatCard label="Carteira" value={formatCurrency(balance)} tone="info" />
+    <div className="content-grid dashboard-grid">
+      <section className={`dashboard-hero span-2 ${dashboardTone}`}>
+        <div className="dashboard-hero-copy">
+          <span className="eyebrow">{monthName} {currentYear}</span>
+          <h2>{heroTitle}</h2>
+          <p>
+            {formatCurrency(summary.saldo)} de saldo no mes, com {formatCurrency(balance)} em carteira
+            {alerts.length ? ` e ${alerts.length} ponto(s) para acompanhar.` : '.'}
+          </p>
+        </div>
+        <div className="dashboard-hero-actions">
+          <span className={`pill ${hasHighAlert ? 'warning' : summary.saldo >= 0 ? 'positive' : 'muted'}`}>
+            {hasHighAlert ? 'Prioridade alta' : summary.saldo >= 0 ? 'Saudavel' : 'Revisar'}
+          </span>
+          <button className="primary-button" onClick={() => setQuickEntryOpen(true)} type="button">
+            <Plus size={17} /> Lancar
+          </button>
+        </div>
+        <div className="dashboard-metrics">
+          <DashboardMetric icon={ArrowUpRight} label="Receitas" value={formatCurrency(summary.receitas)} tone="positive" />
+          <DashboardMetric icon={ArrowDownRight} label="Despesas" value={formatCurrency(totalExpenses)} tone="negative" />
+          <DashboardMetric icon={TrendingUp} label="Saldo" value={formatCurrency(summary.saldo)} tone={summary.saldo >= 0 ? 'positive' : 'negative'} />
+          <DashboardMetric icon={WalletCards} label="Carteira" value={formatCurrency(balance)} tone="info" />
+        </div>
       </section>
 
-      <div className="dashboard-actions span-2">
-        <button className="primary-button" onClick={() => setQuickEntryOpen(true)} type="button">
-          <Plus size={17} /> Lancar transacao
-        </button>
-      </div>
-
-      <section className="panel span-2">
+      <section className="panel span-2 dashboard-year-panel">
         <div className="panel-header">
           <div>
             <h2>Receitas x despesas em {currentYear}</h2>
             <p>Comparativo mensal com parcelas consideradas nas despesas.</p>
+          </div>
+          <div className="dashboard-ratio">
+            <span>Uso da renda</span>
+            <strong>{expenseRatio.toFixed(0)}%</strong>
           </div>
         </div>
         <AnnualBars
@@ -78,17 +114,18 @@ export function DashboardPage({ data, actions, paymentMethods, currentMonth, cur
         />
       </section>
 
-      <section className="panel">
+      <section className="panel dashboard-category-panel">
         <div className="panel-header">
           <div>
             <h2>Gastos por categoria</h2>
             <p>Valores e proporcao do mes atual.</p>
           </div>
+          <span className="pill muted">{categoryTotals.length} categoria(s)</span>
         </div>
         <CategoryBars items={categoryTotals} total={categoryTotal || 1} />
       </section>
 
-      <section className="panel">
+      <section className="panel dashboard-donut-panel">
         <div className="panel-header">
           <div>
             <h2>Distribuicao</h2>
@@ -98,7 +135,7 @@ export function DashboardPage({ data, actions, paymentMethods, currentMonth, cur
         <CategoryDonut items={categoryTotals} total={categoryTotal} />
       </section>
 
-      <section className="panel">
+      <section className="panel dashboard-list-panel">
         <div className="panel-header">
           <div>
             <h2>Recentes</h2>
@@ -109,7 +146,7 @@ export function DashboardPage({ data, actions, paymentMethods, currentMonth, cur
         <TransactionList data={data} items={recent} actions={actions} compact />
       </section>
 
-      <section className="panel">
+      <section className="panel dashboard-list-panel">
         <div className="panel-header">
           <div>
             <h2>Fixos e assinaturas</h2>
@@ -120,9 +157,10 @@ export function DashboardPage({ data, actions, paymentMethods, currentMonth, cur
         <div className="list">
           {pendingFixed.slice(0, 5).map((item) => (
             <div className="list-row" key={item.id}>
+              <CalendarCheck size={18} />
               <div className="row-main">
                 <strong>{item.name}</strong>
-                <span>{item.dueDate} · {item.kind === 'assinatura' ? 'Assinatura' : 'Fixo'}</span>
+                <span>{item.dueDate} · {item.kind === 'subscription' || item.kind === 'assinatura' ? 'Assinatura' : 'Fixo'}</span>
               </div>
               <strong className="money-negative">{formatCurrency(item.amount)}</strong>
             </div>
@@ -131,7 +169,7 @@ export function DashboardPage({ data, actions, paymentMethods, currentMonth, cur
         </div>
       </section>
 
-      <section className="panel span-2">
+      <section className="panel dashboard-projection-panel">
         <div className="panel-header">
           <div>
             <h2>Projecao do mes</h2>
@@ -164,7 +202,7 @@ export function DashboardPage({ data, actions, paymentMethods, currentMonth, cur
         </div>
       </section>
 
-      <section className="panel span-2">
+      <section className="panel dashboard-alert-panel">
         <div className="panel-header">
           <div>
             <h2>Alertas e pendencias</h2>
@@ -213,6 +251,18 @@ export function DashboardPage({ data, actions, paymentMethods, currentMonth, cur
           </section>
         </div>
       )}
+    </div>
+  );
+}
+
+function DashboardMetric({ icon: Icon, label, value, tone }) {
+  return (
+    <div className={`dashboard-metric ${tone}`}>
+      <div className="dashboard-metric-icon">
+        <Icon size={18} />
+      </div>
+      <span>{label}</span>
+      <strong>{value}</strong>
     </div>
   );
 }
