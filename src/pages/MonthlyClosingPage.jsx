@@ -13,9 +13,9 @@ export function MonthlyClosingPage({ data, actions, currentMonth, currentYear, s
     () => monthlyClosingInsights(data, currentMonth, currentYear),
     [data, currentMonth, currentYear],
   );
-  const closing = data.monthlyClosings.find((item) => item.id === monthlyClosingId(insights.month));
+  const closing = (data.monthlyClosings || []).find((item) => item.id === monthlyClosingId(insights.month));
   const [note, setNote] = useState(closing?.note || '');
-  const totalExpenses = insights.summary.despesas + insights.summary.parcelas;
+  const totalExpenses = insights.totalExpenses;
 
   useEffect(() => {
     setNote(closing?.note || '');
@@ -49,11 +49,21 @@ export function MonthlyClosingPage({ data, actions, currentMonth, currentYear, s
           <div>
             <span className="eyebrow">Fechamento mensal</span>
             <h2>{insights.label}</h2>
-            <p>Conferencia do mes antes de virar a pagina: fixos, faturas, alvos, caixa reservado e saldo.</p>
+            <p>Conferencia do mes antes de virar a pagina: pendencias, faturas, alvos, caixa reservado e saldo.</p>
           </div>
           <span className={`pill ${closing ? 'positive' : insights.readyToClose ? 'warning' : 'muted'}`}>
             {closing ? 'Fechado' : insights.readyToClose ? 'Pronto para fechar' : 'Com pontos de atencao'}
           </span>
+        </div>
+
+        <div className="closing-readiness">
+          <div className="closing-readiness-top">
+            <strong>{insights.readyScore}% pronto</strong>
+            <span>{insights.issueCount ? `${insights.issueCount} ponto(s) para revisar` : 'Tudo conferido'}</span>
+          </div>
+          <div className="closing-progress" aria-label="Prontidao do fechamento">
+            <span style={{ width: `${insights.readyScore}%` }} />
+          </div>
         </div>
 
         <div className="closing-actions">
@@ -73,6 +83,22 @@ export function MonthlyClosingPage({ data, actions, currentMonth, currentYear, s
               <RotateCcw size={17} /> Reabrir mes
             </button>
           )}
+        </div>
+      </section>
+
+      <section className="panel span-2">
+        <div className="panel-header">
+          <div>
+            <h2>Resumo de conferencia</h2>
+            <p>Valores que ainda podem mudar a leitura do mes.</p>
+          </div>
+        </div>
+        <div className="closing-summary-grid">
+          <ClosingMetric label="Livre estimado" value={insights.cashFreeEstimated} tone={insights.cashFreeEstimated >= 0 ? 'positive' : 'negative'} />
+          <ClosingMetric label="Faturas restantes" value={insights.openInvoiceTotal} tone={insights.openInvoiceTotal > 0 ? 'negative' : 'positive'} />
+          <ClosingMetric label="Fixos pendentes" value={insights.pendingFixedTotal} tone={insights.pendingFixedTotal > 0 ? 'negative' : 'positive'} />
+          <ClosingMetric label="Alvos acima" value={insights.budgetOverAmount} tone={insights.budgetOverAmount > 0 ? 'negative' : 'positive'} />
+          <ClosingMetric label="Caixa sem destino" value={insights.reservedAvailable} tone={insights.reservedAvailable > 0 ? 'info' : 'positive'} />
         </div>
       </section>
 
@@ -99,23 +125,23 @@ export function MonthlyClosingPage({ data, actions, currentMonth, currentYear, s
       <section className="panel">
         <div className="panel-header">
           <div>
-            <h2>Pendencias</h2>
-            <p>O que merece acao antes de fechar.</p>
+            <h2>Plano de acao</h2>
+            <p>Prioridade do que revisar antes de salvar o fechamento.</p>
           </div>
         </div>
-        <div className="closing-stack">
-          <PendingBlock
-            actionLabel="Ver fixos"
-            items={insights.pendingFixed}
-            onAction={() => setPage('fixed')}
-            title="Fixos e assinaturas"
-          />
-          <PendingBlock
-            actionLabel="Ver cartoes"
-            items={insights.openInvoices}
-            onAction={() => setPage('cards')}
-            title="Faturas abertas ou divergentes"
-          />
+        <div className="list">
+          {insights.actionItems.slice(0, 6).map((item) => (
+            <div className="list-row" key={item.id}>
+              <AlertTriangle className={item.severity === 'high' ? 'money-negative' : ''} size={18} />
+              <div className="row-main">
+                <strong>{item.title}</strong>
+                <span>{item.detail}</span>
+              </div>
+              {!!item.amount && <strong className={item.severity === 'high' ? 'money-negative' : ''}>{formatCurrency(item.amount)}</strong>}
+              <button className="text-button" onClick={() => setPage(item.page)} type="button">Abrir</button>
+            </div>
+          ))}
+          {!insights.actionItems.length && <EmptyState title="Nenhuma acao pendente para este mes." />}
         </div>
       </section>
 
@@ -196,25 +222,17 @@ export function MonthlyClosingPage({ data, actions, currentMonth, currentYear, s
   );
 }
 
-function PendingBlock({ title, items, actionLabel, onAction }) {
+function ClosingMetric({ label, value, tone = 'info' }) {
+  const className = tone === 'positive'
+    ? 'money-positive'
+    : tone === 'negative'
+      ? 'money-negative'
+      : '';
+
   return (
-    <div className="pending-block">
-      <div className="panel-header compact-header">
-        <strong>{title}</strong>
-        {!!items.length && <button className="text-button" onClick={onAction} type="button">{actionLabel}</button>}
-      </div>
-      <div className="list">
-        {items.slice(0, 4).map((item) => (
-          <div className="list-row" key={item.id || item.invoiceKey}>
-            <div className="row-main">
-              <strong>{item.name || item.card?.name}</strong>
-              <span>{item.dueDate ? `Vence ${item.dueDate}` : item.detail || ''}</span>
-            </div>
-            <strong className="money-negative">{formatCurrency(item.remaining ?? item.amount ?? item.total)}</strong>
-          </div>
-        ))}
-        {!items.length && <EmptyState title="Nada pendente aqui." />}
-      </div>
+    <div className="closing-metric">
+      <span>{label}</span>
+      <strong className={className}>{formatCurrency(value)}</strong>
     </div>
   );
 }

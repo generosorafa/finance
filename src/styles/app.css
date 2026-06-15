@@ -590,11 +590,44 @@ select:focus {
   gap: 12px;
 }
 
+.closing-readiness {
+  display: grid;
+  gap: 8px;
+}
+
+.closing-readiness-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.closing-readiness-top span {
+  color: var(--muted);
+  font-size: 0.84rem;
+}
+
+.closing-progress {
+  height: 10px;
+  border-radius: 999px;
+  background: var(--surface-3);
+  overflow: hidden;
+}
+
+.closing-progress span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--positive);
+}
+
 .checklist,
 .closing-stack,
 .closing-cash-grid,
+.closing-summary-grid,
 .cash-box,
-.cash-metrics {
+.cash-metrics,
+.report-kpi-grid {
   display: grid;
   gap: 10px;
 }
@@ -622,6 +655,42 @@ select:focus {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
+.closing-summary-grid,
+.report-kpi-grid {
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+}
+
+.report-kpi-grid {
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+}
+
+.closing-metric,
+.report-kpi {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface-2);
+  min-width: 0;
+  padding: 12px;
+}
+
+.closing-metric span,
+.report-kpi span {
+  display: block;
+  color: var(--muted);
+  font-size: 0.76rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.closing-metric strong,
+.report-kpi strong {
+  display: block;
+  margin-top: 6px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .cash-box {
   border: 1px solid var(--line);
   border-radius: 8px;
@@ -632,6 +701,15 @@ select:focus {
 .cash-box span,
 .cash-metrics span {
   color: var(--muted);
+}
+
+.cash-box > div:first-child strong,
+.cash-box > div:first-child span {
+  display: block;
+}
+
+.cash-box > div:first-child span {
+  margin-top: 4px;
 }
 
 .cash-metrics {
@@ -1608,13 +1686,20 @@ select:focus {
   .allocation-form,
   .closing-actions,
   .closing-cash-grid,
+  .closing-summary-grid,
   .cash-metrics,
   .cash-flow-grid,
   .mapping-grid,
   .reserve-grid,
   .template-tools,
-  .projection-grid {
+  .projection-grid,
+  .report-kpi-grid {
     grid-template-columns: 1fr;
+  }
+
+  .closing-readiness-top {
+    align-items: flex-start;
+    flex-direction: column;
   }
 
   .asset-row {

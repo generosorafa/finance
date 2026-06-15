@@ -9,6 +9,8 @@ import {
   cardInvoiceSummaries,
   categorySpendingForMonth,
   dataHealthInsights,
+  exportFinanceCsv,
+  exportMonthlyReportHtml,
   financeAlerts,
   applyAutomationRule,
   findAutomationRule,
@@ -239,6 +241,10 @@ test('monthlyClosingInsights surfaces pending work before closing', () => {
 
   assert.equal(insights.pendingFixed.length, 1);
   assert.equal(insights.overBudget.length, 1);
+  assert.equal(insights.readyScore, 40);
+  assert.equal(insights.issueCount, 3);
+  assert.ok(insights.actionItems.some((item) => item.page === 'fixed'));
+  assert.ok(insights.actionItems.some((item) => item.page === 'categories'));
   assert.equal(insights.readyToClose, false);
 });
 
@@ -259,8 +265,40 @@ test('buildMonthlyClosingSnapshot stores compact monthly totals', () => {
   assert.equal(snapshot.id, 'monthly_closing_2026-06');
   assert.equal(snapshot.receitas, 1000);
   assert.equal(snapshot.carteira, 150);
+  assert.equal(snapshot.readyScore, 100);
+  assert.equal(snapshot.issueCount, 0);
+  assert.deepEqual(snapshot.actionItems, []);
   assert.equal(snapshot.note, 'ok');
   assert.equal(snapshot.closedAt, 123);
+});
+
+test('monthly exports include closing, invoice and action sections', () => {
+  const data = {
+    settings: { initialBalance: 1000 },
+    wallet: [],
+    categories: [{ id: 'cat_food', name: 'Alimentacao' }],
+    categoryBudgets: [{ id: 'b1', categoryId: 'cat_food', month: '2026-06', amount: 100 }],
+    transactions: [
+      { id: 'tx1', type: 'despesa', desc: 'Mercado', category: 'cat_food', amount: 120, payment: 'PIX', date: '2026-06-01' },
+      { id: 'tx2', type: 'despesa', desc: 'Online', category: 'cat_food', amount: 80, payment: 'CC::card_1', linkedCardId: 'card_1', date: '2026-06-02' },
+    ],
+    installments: [],
+    fixedItems: [{ id: 'rent', name: 'Aluguel', amount: 1000, dueDay: 5, active: true, startMonth: '2026-01', payment: 'PIX' }],
+    cards: [{ id: 'card_1', name: 'Visa', closeDay: 10, dueDay: 20 }],
+    allocations: [],
+    monthlyClosings: [],
+  };
+
+  const csv = exportFinanceCsv(data, 5, 2026);
+  assert.ok(csv.includes('FECHAMENTO'));
+  assert.ok(csv.includes('PENDENCIAS DO FECHAMENTO'));
+  assert.ok(csv.includes('FATURAS'));
+
+  const html = exportMonthlyReportHtml(data, 5, 2026, { note: '<ok>', closedAt: 123 });
+  assert.ok(html.includes('Relatorio Junho 2026'));
+  assert.ok(html.includes('Checklist do fechamento'));
+  assert.ok(html.includes('Faturas do mes'));
+  assert.ok(html.includes('&lt;ok&gt;'));
 });
 
 test('smartCashSummary estimates free cash after open invoices and pending fixed items', () => {

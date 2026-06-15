@@ -119,10 +119,12 @@ service cloud.firestore {
         allow read, delete: if isOwner(userId);
         allow create, update: if isOwner(userId) && validOwnedDoc(docId, [
           'id', 'month', 'receitas', 'despesas', 'parcelas', 'saldo', 'carteira',
-          'fixedPending', 'openInvoices', 'overBudget', 'warningBudget',
+          'fixedPending', 'openInvoices', 'pendingFixedTotal', 'openInvoiceTotal',
+          'overBudget', 'warningBudget', 'budgetOverAmount', 'budgetWarningAmount',
           'goalsCashAvailable', 'debtsCashAvailable', 'goalsAllocated',
-          'debtsAllocated', 'checklist', 'categoryAlerts', 'cardInvoices',
-          'note', 'status', 'closedAt', 'updatedAt'
+          'debtsAllocated', 'reservedAvailable', 'cashFreeEstimated',
+          'readyScore', 'issueCount', 'checklist', 'actionItems',
+          'categoryAlerts', 'cardInvoices', 'note', 'status', 'closedAt', 'updatedAt'
         ]);
       }
 

@@ -750,6 +750,7 @@ export function monthlyClosingId(closingMonth) {
 export function monthlyClosingInsights(data, monthIndex, year) {
   const closingMonth = monthKeyFromParts(year, monthIndex);
   const summary = summarizeMonth(data, monthIndex, year);
+  const cash = smartCashSummary(data, monthIndex, year);
   const fixedRows = fixedItemsForMonth(data.fixedItems || [], monthIndex, year)
     .map((item) => ({
       ...item,
@@ -771,6 +772,9 @@ export function monthlyClosingInsights(data, monthIndex, year) {
   const goalsAllocated = allocationTotalForMonth(data, 'goals', monthIndex, year);
   const debtsAllocated = allocationTotalForMonth(data, 'debts', monthIndex, year);
   const reservedAvailable = goalsCash.available + debtsCash.available;
+  const totalExpenses = summary.despesas + summary.parcelas;
+  const budgetOverAmount = overBudget.reduce((sum, item) => sum + Math.max(0, Number(item.total || 0) - Number(item.target || 0)), 0);
+  const budgetWarningAmount = warningBudget.reduce((sum, item) => sum + Number(item.total || 0), 0);
 
   const checklist = [
     {
@@ -804,12 +808,28 @@ export function monthlyClosingInsights(data, monthIndex, year) {
       detail: summary.saldo >= 0 ? 'Saldo positivo' : 'Mes fechando negativo',
     },
   ];
+  const readyScore = Math.round((checklist.filter((item) => item.done).length / checklist.length) * 100);
+  const actionItems = monthlyClosingActionItems({
+    pendingFixed,
+    openInvoices,
+    overBudget,
+    warningBudget,
+    reservedAvailable,
+    summary,
+  });
 
   return {
     month: closingMonth,
     label: monthLabel(year, monthIndex),
     summary,
-    wallet: walletBalance(data),
+    totalExpenses,
+    wallet: cash.wallet,
+    cashFreeEstimated: cash.freeEstimated,
+    pendingFixedTotal: cash.pendingFixedTotal,
+    openInvoiceTotal: cash.openInvoiceTotal,
+    budgetOverAmount,
+    budgetWarningAmount,
+    reservedAvailable,
     fixedRows,
     pendingFixed,
     cardInvoices,
@@ -822,31 +842,102 @@ export function monthlyClosingInsights(data, monthIndex, year) {
     goalsAllocated,
     debtsAllocated,
     checklist,
+    actionItems,
+    issueCount: actionItems.length,
+    readyScore,
     readyToClose: checklist.every((item) => item.done),
   };
 }
 
+function monthlyClosingActionItems({ pendingFixed, openInvoices, overBudget, warningBudget, reservedAvailable, summary }) {
+  const fixedItems = pendingFixed.map((item) => ({
+    id: `fixed_${item.id}`,
+    title: item.name,
+    detail: `${item.kind === 'assinatura' ? 'Assinatura' : 'Fixo'} pendente para ${item.dueDate}`,
+    amount: Number(item.amount || 0),
+    severity: 'high',
+    page: 'fixed',
+  }));
+  const invoiceItems = openInvoices.map((item) => ({
+    id: `invoice_${item.invoiceKey}`,
+    title: item.card.name,
+    detail: invoiceActionDetail(item),
+    amount: item.status === 'overpaid' ? Math.abs(Number(item.difference || 0)) : Math.max(0, Number(item.remaining || 0)),
+    severity: item.status === 'overpaid' || item.status === 'divergent' ? 'high' : item.status === 'partial' ? 'medium' : 'medium',
+    page: 'cards',
+  }));
+  const budgetItems = [...overBudget, ...warningBudget].map((item) => ({
+    id: `budget_${item.category.id}`,
+    title: item.category.name,
+    detail: item.status === 'over'
+      ? `Categoria acima do alvo em ${formatCurrency(Math.max(0, Number(item.total || 0) - Number(item.target || 0)))}`
+      : `Categoria em ${item.percent.toFixed(0)}% do alvo`,
+    amount: item.status === 'over'
+      ? Math.max(0, Number(item.total || 0) - Number(item.target || 0))
+      : Number(item.total || 0),
+    severity: item.status === 'over' ? 'high' : 'medium',
+    page: 'categories',
+  }));
+  const reservedItem = reservedAvailable > 0 ? [{
+    id: 'reserved_available',
+    title: 'Caixa reservado sem destino',
+    detail: 'Metas ou dividas ainda tem valor para distribuir',
+    amount: reservedAvailable,
+    severity: 'low',
+    page: 'goals',
+  }] : [];
+  const balanceItem = summary.saldo < 0 ? [{
+    id: 'negative_balance',
+    title: 'Saldo do mes negativo',
+    detail: 'Despesas e parcelas passaram as receitas do mes',
+    amount: Math.abs(summary.saldo),
+    severity: 'high',
+    page: 'dashboard',
+  }] : [];
+
+  return [...fixedItems, ...invoiceItems, ...budgetItems, ...reservedItem, ...balanceItem]
+    .sort((a, b) => (
+      severityRank(b.severity) - severityRank(a.severity)
+      || Number(b.amount || 0) - Number(a.amount || 0)
+      || String(a.title).localeCompare(String(b.title))
+    ));
+}
+
+function invoiceActionDetail(item) {
+  if (item.status === 'partial') return `Fatura parcial, falta ${formatCurrency(item.remaining)}`;
+  if (item.status === 'overpaid' || item.status === 'divergent') return `Pagamento diferente do total em ${formatCurrency(Math.abs(Number(item.difference || 0)))}`;
+  return `Fatura aberta, vence ${item.dueDate}`;
+}
+
 export function buildMonthlyClosingSnapshot(data, monthIndex, year, note = '', now = Date.now()) {
   const insights = monthlyClosingInsights(data, monthIndex, year);
-  const totalExpenses = insights.summary.despesas + insights.summary.parcelas;
 
   return {
     id: monthlyClosingId(insights.month),
     month: insights.month,
     receitas: insights.summary.receitas,
-    despesas: totalExpenses,
+    despesas: insights.totalExpenses,
     parcelas: insights.summary.parcelas,
     saldo: insights.summary.saldo,
     carteira: insights.wallet,
     fixedPending: insights.pendingFixed.length,
     openInvoices: insights.openInvoices.length,
+    pendingFixedTotal: insights.pendingFixedTotal,
+    openInvoiceTotal: insights.openInvoiceTotal,
     overBudget: insights.overBudget.length,
     warningBudget: insights.warningBudget.length,
+    budgetOverAmount: insights.budgetOverAmount,
+    budgetWarningAmount: insights.budgetWarningAmount,
     goalsCashAvailable: insights.goalsCash.available,
     debtsCashAvailable: insights.debtsCash.available,
+    reservedAvailable: insights.reservedAvailable,
+    cashFreeEstimated: insights.cashFreeEstimated,
     goalsAllocated: insights.goalsAllocated,
     debtsAllocated: insights.debtsAllocated,
+    readyScore: insights.readyScore,
+    issueCount: insights.issueCount,
     checklist: insights.checklist,
+    actionItems: insights.actionItems,
     categoryAlerts: [...insights.overBudget, ...insights.warningBudget].map((item) => ({
       categoryId: item.category.id,
       name: item.category.name,
@@ -984,6 +1075,7 @@ export function exportTransactionsCsv(transactions, categories) {
 
 export function exportFinanceCsv(data, monthIndex, year) {
   const summary = summarizeMonth(data, monthIndex, year);
+  const insights = monthlyClosingInsights(data, monthIndex, year);
   const fixedMonth = monthKeyFromParts(year, monthIndex);
   const fixedRows = fixedItemsForMonth(data.fixedItems || [], monthIndex, year);
   const rows = [];
@@ -992,6 +1084,22 @@ export function exportFinanceCsv(data, monthIndex, year) {
   rows.push(['Receitas', formatCsvCurrency(summary.receitas)]);
   rows.push(['Despesas', formatCsvCurrency(summary.despesas + summary.parcelas)]);
   rows.push(['Saldo', formatCsvCurrency(summary.saldo)]);
+  rows.push(['Carteira', formatCsvCurrency(insights.wallet)]);
+  rows.push(['Livre estimado', formatCsvCurrency(insights.cashFreeEstimated)]);
+  rows.push(['Prontidao do fechamento', `${insights.readyScore}%`]);
+  rows.push(['Pontos de atencao', insights.issueCount]);
+  rows.push([]);
+  rows.push(['FECHAMENTO']);
+  rows.push(['Item', 'Status', 'Detalhe']);
+  insights.checklist.forEach((item) => {
+    rows.push([item.label, item.done ? 'OK' : 'Atencao', item.detail]);
+  });
+  rows.push([]);
+  rows.push(['PENDENCIAS DO FECHAMENTO']);
+  rows.push(['Tipo', 'Titulo', 'Detalhe', 'Severidade', 'Valor']);
+  insights.actionItems.forEach((item) => {
+    rows.push([pageLabel(item.page), item.title, item.detail, severityLabel(item.severity), formatCsvCurrency(item.amount)]);
+  });
   rows.push([]);
   rows.push(['TRANSACOES']);
   rows.push(['Data', 'Descricao', 'Tipo', 'Categoria', 'Pagamento', 'Valor']);
@@ -1039,6 +1147,22 @@ export function exportFinanceCsv(data, monthIndex, year) {
   });
 
   rows.push([]);
+  rows.push(['FATURAS']);
+  rows.push(['Cartao', 'Total', 'Pago', 'Restante', 'Vencimento', 'Status']);
+  insights.cardInvoices
+    .filter((item) => item.total > 0 || item.paidTotal > 0)
+    .forEach((item) => {
+      rows.push([
+        item.card.name,
+        formatCsvCurrency(item.total),
+        formatCsvCurrency(item.paidTotal),
+        formatCsvCurrency(item.remaining),
+        item.dueDate,
+        invoiceStatusLabel(item.status),
+      ]);
+    });
+
+  rows.push([]);
   rows.push(['ALVOS POR CATEGORIA']);
   rows.push(['Categoria', 'Gasto', 'Alvo', 'Percentual']);
   categorySpendingForMonth(data, monthIndex, year)
@@ -1056,6 +1180,221 @@ export function exportFinanceCsv(data, monthIndex, year) {
     });
 
   return rows.map((row) => row.map(escapeCsvCell).join(';')).join('\r\n');
+}
+
+export function exportMonthlyReportHtml(data, monthIndex, year, closing = null) {
+  const insights = monthlyClosingInsights(data, monthIndex, year);
+  const summary = insights.summary;
+  const closingStatus = closing
+    ? `Fechado em ${formatReportDate(closing.closedAt)}`
+    : insights.readyToClose
+      ? 'Pronto para fechar'
+      : 'Com pontos de atencao';
+  const fixedRows = insights.fixedRows
+    .sort((a, b) => (a.dueDate || '').localeCompare(b.dueDate || ''))
+    .map((item) => [
+      item.dueDate || '-',
+      item.name || '-',
+      item.kind === 'assinatura' ? 'Assinatura' : 'Fixo',
+      formatCurrency(item.amount),
+      item.launchedTransaction ? 'Lancado' : 'Pendente',
+    ]);
+  const invoiceRows = insights.cardInvoices
+    .filter((item) => item.total > 0 || item.paidTotal > 0)
+    .map((item) => [
+      item.card.name,
+      formatCurrency(item.total),
+      formatCurrency(item.paidTotal),
+      formatCurrency(item.remaining),
+      item.dueDate,
+      invoiceStatusLabel(item.status),
+    ]);
+  const budgetRows = insights.categoryStatuses
+    .filter((item) => item.total > 0 || item.target > 0)
+    .map((item) => [
+      item.category.name,
+      formatCurrency(item.total),
+      item.target ? formatCurrency(item.target) : 'Sem alvo',
+      item.target ? `${item.percent.toFixed(0)}%` : '-',
+      categoryStatusLabel(item.status),
+    ]);
+  const transactionRows = summary.monthTransactions
+    .sort((a, b) => (a.date || '').localeCompare(b.date || ''))
+    .map((item) => [
+      item.date || '-',
+      item.desc || '-',
+      item.type === 'receita' ? 'Receita' : 'Despesa',
+      getCategory(data.categories || [], item.category).name,
+      formatCurrency(item.amount),
+    ]);
+  const installmentRows = summary.installments.map((item) => {
+    const card = (data.cards || []).find((entry) => entry.id === item.cardId);
+    return [
+      item.desc || '-',
+      card?.name || '-',
+      `${item.paidCount}/${item.parcels}`,
+      formatCurrency(item.parcelValue),
+    ];
+  });
+  const actionRows = insights.actionItems.map((item) => [
+    pageLabel(item.page),
+    item.title,
+    item.detail,
+    severityLabel(item.severity),
+    formatCurrency(item.amount),
+  ]);
+  const checklistRows = insights.checklist.map((item) => [
+    item.done ? 'OK' : 'Atencao',
+    item.label,
+    item.detail,
+  ]);
+
+  return `<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Relatorio Finance - ${escapeHtml(insights.label)}</title>
+  <style>
+    :root { color-scheme: light; font-family: Inter, Arial, sans-serif; color: #17202c; background: #f5f7fb; }
+    body { margin: 0; padding: 32px; }
+    main { max-width: 1100px; margin: 0 auto; display: grid; gap: 22px; }
+    header, section { background: #fff; border: 1px solid #dce3ef; border-radius: 10px; padding: 22px; box-shadow: 0 8px 26px rgba(28, 38, 52, 0.06); }
+    h1, h2, p { margin: 0; }
+    h1 { font-size: 28px; }
+    h2 { font-size: 18px; margin-bottom: 14px; }
+    p, td, th, li { font-size: 13px; }
+    .muted { color: #667085; margin-top: 6px; }
+    .hero { display: flex; justify-content: space-between; gap: 18px; align-items: flex-start; }
+    .pill { display: inline-block; border-radius: 999px; padding: 6px 10px; font-weight: 800; font-size: 12px; color: #075985; background: #e0f2fe; white-space: nowrap; }
+    .pill.ok { color: #047857; background: #d1fae5; }
+    .pill.warn { color: #92400e; background: #fef3c7; }
+    .grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+    .metric { border: 1px solid #dce3ef; border-radius: 8px; padding: 14px; background: #f8fafc; }
+    .metric span { display: block; color: #667085; font-size: 11px; font-weight: 800; text-transform: uppercase; }
+    .metric strong { display: block; margin-top: 6px; font-size: 18px; }
+    .bar { height: 10px; border-radius: 999px; background: #e5e7eb; overflow: hidden; margin-top: 14px; }
+    .bar span { display: block; height: 100%; background: #10b981; width: ${Math.min(100, Math.max(0, insights.readyScore))}%; }
+    table { width: 100%; border-collapse: collapse; }
+    th { color: #475467; text-align: left; font-size: 11px; text-transform: uppercase; }
+    th, td { border-bottom: 1px solid #e5e7eb; padding: 10px 8px; vertical-align: top; }
+    tr:last-child td { border-bottom: 0; }
+    .note { border-left: 4px solid #3b82f6; background: #eff6ff; padding: 12px 14px; border-radius: 8px; color: #1e3a8a; }
+    @media print { body { padding: 0; background: #fff; } header, section { box-shadow: none; break-inside: avoid; } }
+    @media (max-width: 780px) { body { padding: 16px; } .hero, .grid { grid-template-columns: 1fr; display: grid; } }
+  </style>
+</head>
+<body>
+  <main>
+    <header>
+      <div class="hero">
+        <div>
+          <h1>Relatorio ${escapeHtml(insights.label)}</h1>
+          <p class="muted">Resumo financeiro, pendencias de fechamento, faturas, categorias e movimentos do mes.</p>
+        </div>
+        <span class="pill ${closing || insights.readyToClose ? 'ok' : 'warn'}">${escapeHtml(closingStatus)}</span>
+      </div>
+      <div class="bar" aria-label="Prontidao do fechamento"><span></span></div>
+      <p class="muted">${insights.readyScore}% de prontidao do fechamento</p>
+    </header>
+
+    <section>
+      <h2>Resumo</h2>
+      <div class="grid">
+        ${reportMetric('Receitas', formatCurrency(summary.receitas))}
+        ${reportMetric('Despesas', formatCurrency(insights.totalExpenses))}
+        ${reportMetric('Saldo do mes', formatCurrency(summary.saldo))}
+        ${reportMetric('Carteira', formatCurrency(insights.wallet))}
+        ${reportMetric('Livre estimado', formatCurrency(insights.cashFreeEstimated))}
+        ${reportMetric('Faturas restantes', formatCurrency(insights.openInvoiceTotal))}
+        ${reportMetric('Fixos pendentes', formatCurrency(insights.pendingFixedTotal))}
+        ${reportMetric('Pontos de atencao', String(insights.issueCount))}
+      </div>
+    </section>
+
+    ${closing?.note ? `<section><h2>Observacao salva</h2><div class="note">${escapeHtml(closing.note)}</div></section>` : ''}
+    ${reportTable('Checklist do fechamento', ['Status', 'Item', 'Detalhe'], checklistRows)}
+    ${reportTable('Pendencias e acoes', ['Area', 'Titulo', 'Detalhe', 'Severidade', 'Valor'], actionRows, 'Nenhuma pendencia no fechamento.')}
+    ${reportTable('Faturas do mes', ['Cartao', 'Total', 'Pago', 'Restante', 'Vencimento', 'Status'], invoiceRows, 'Nenhuma fatura com valor no mes.')}
+    ${reportTable('Alvos por categoria', ['Categoria', 'Gasto', 'Alvo', '%', 'Status'], budgetRows, 'Nenhum alvo ou gasto categorizado no mes.')}
+    ${reportTable('Fixos e assinaturas', ['Vencimento', 'Nome', 'Tipo', 'Valor', 'Status'], fixedRows, 'Nenhum fixo ou assinatura ativo no mes.')}
+    ${reportTable('Parcelamentos', ['Descricao', 'Cartao', 'Parcela', 'Valor'], installmentRows, 'Nenhuma parcela no mes.')}
+    ${reportTable('Transacoes', ['Data', 'Descricao', 'Tipo', 'Categoria', 'Valor'], transactionRows, 'Nenhuma transacao no mes.')}
+  </main>
+</body>
+</html>`;
+}
+
+function reportMetric(label, value) {
+  return `<div class="metric"><span>${escapeHtml(label)}</span><strong>${escapeHtml(value)}</strong></div>`;
+}
+
+function reportTable(title, headers, rows, emptyText = '') {
+  const body = rows.length
+    ? rows.map((row) => `<tr>${row.map((cell) => `<td>${escapeHtml(cell)}</td>`).join('')}</tr>`).join('')
+    : `<tr><td colspan="${headers.length}">${escapeHtml(emptyText || 'Sem dados.')}</td></tr>`;
+
+  return `<section>
+    <h2>${escapeHtml(title)}</h2>
+    <table>
+      <thead><tr>${headers.map((item) => `<th>${escapeHtml(item)}</th>`).join('')}</tr></thead>
+      <tbody>${body}</tbody>
+    </table>
+  </section>`;
+}
+
+function invoiceStatusLabel(status) {
+  if (status === 'paid') return 'Paga';
+  if (status === 'partial') return 'Parcial';
+  if (status === 'overpaid' || status === 'divergent') return 'Divergente';
+  if (status === 'open') return 'Aberta';
+  return 'Sem valor';
+}
+
+function categoryStatusLabel(status) {
+  if (status === 'over') return 'Acima';
+  if (status === 'warning') return 'Atencao';
+  if (status === 'ok') return 'Dentro do alvo';
+  return 'Sem alvo';
+}
+
+function severityLabel(severity) {
+  if (severity === 'high') return 'Alta';
+  if (severity === 'medium') return 'Media';
+  return 'Baixa';
+}
+
+function pageLabel(page) {
+  const labels = {
+    cards: 'Cartoes',
+    categories: 'Categorias',
+    closing: 'Fechamento',
+    dashboard: 'Dashboard',
+    debts: 'Dividas',
+    fixed: 'Fixos',
+    goals: 'Metas',
+    reports: 'Relatorios',
+    transactions: 'Transacoes',
+    wallet: 'Carteira',
+  };
+
+  return labels[page] || page || '-';
+}
+
+function formatReportDate(value) {
+  if (!value) return '-';
+  const date = new Date(Number(value));
+  if (Number.isNaN(date.getTime())) return String(value);
+  return date.toLocaleString('pt-BR');
+}
+
+function escapeHtml(value) {
+  return String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
 }
 
 function escapeCsvCell(value) {
