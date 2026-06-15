@@ -4,7 +4,7 @@ import { formatCurrency, getCardIdFromPayment } from '../utils/finance.js';
 
 export function StatCard({ label, value, tone }) {
   return (
-    <div className={`stat-card ${tone}`}>
+    <div className={`stat-card ${tone || ''}`}>
       <span>{label}</span>
       <strong>{value}</strong>
     </div>
@@ -67,4 +67,3 @@ export function paymentLabel(payment, cards) {
 export function EmptyState({ title }) {
   return <div className="empty-state">{title}</div>;
 }
-
