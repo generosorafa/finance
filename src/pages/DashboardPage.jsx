@@ -10,7 +10,7 @@ import {
   WalletCards,
   X,
 } from 'lucide-react';
-import { CategoryBars, EmptyState } from '../components/ui.jsx';
+import { EmptyState } from '../components/ui.jsx';
 import { TransactionForm } from '../components/transactions/TransactionForm.jsx';
 import { TransactionList } from '../components/transactions/TransactionList.jsx';
 import { MONTHS } from '../data/defaults.js';
@@ -114,25 +114,15 @@ export function DashboardPage({ data, actions, paymentMethods, currentMonth, cur
         />
       </section>
 
-      <section className="panel dashboard-category-panel">
+      <section className="panel span-2 dashboard-category-overview">
         <div className="panel-header">
           <div>
-            <h2>Gastos por categoria</h2>
-            <p>Valores e proporcao do mes atual.</p>
+            <h2>Despesas por categoria</h2>
+            <p>Tabela e distribuicao do mes atual no mesmo lugar.</p>
           </div>
           <span className="pill muted">{categoryTotals.length} categoria(s)</span>
         </div>
-        <CategoryBars items={categoryTotals} total={categoryTotal || 1} />
-      </section>
-
-      <section className="panel dashboard-donut-panel">
-        <div className="panel-header">
-          <div>
-            <h2>Distribuicao</h2>
-            <p>Rosca por categoria no mes.</p>
-          </div>
-        </div>
-        <CategoryDonut items={categoryTotals} total={categoryTotal} />
+        <CategoryOverview items={categoryTotals} total={categoryTotal} />
       </section>
 
       <section className="panel dashboard-list-panel">
@@ -291,27 +281,37 @@ function ProjectionCard({ label, value, tone }) {
 function AnnualBars({ currentMonth, items, selectedMonth, onSelect }) {
   const maxValue = Math.max(...items.flatMap((item) => [item.receitas, item.despesas]), 1);
   const selected = items[selectedMonth] || items[currentMonth];
+  const axisMax = niceAxisMax(maxValue);
+  const axisLabels = [axisMax, axisMax * 0.75, axisMax * 0.5, axisMax * 0.25, 0];
 
   return (
     <div className="annual-chart">
-      <div className="annual-bars">
-        {items.map((item) => (
-          <button
-            className={`month-column ${item.monthIndex === selectedMonth ? 'active' : ''} ${item.monthIndex === currentMonth ? 'current' : ''}`}
-            key={item.monthIndex}
-            onClick={() => onSelect(item.monthIndex)}
-            title={`${MONTHS[item.monthIndex]}: receitas ${formatCurrency(item.receitas)} · despesas ${formatCurrency(item.despesas)}`}
-            type="button"
-          >
-            <div className="bar-pair">
-              <span className="year-bar income" style={{ height: `${barHeight(item.receitas, maxValue)}%` }} />
-              <span className="year-bar expense" style={{ height: `${barHeight(item.despesas, maxValue)}%` }} />
-            </div>
-            <strong>{MONTHS[item.monthIndex].slice(0, 3)}</strong>
-            <small className="money-positive">{shortCurrency(item.receitas)}</small>
-            <small className="money-negative">{shortCurrency(item.despesas)}</small>
-          </button>
-        ))}
+      <div className="annual-compact">
+        <div className="annual-axis" aria-hidden="true">
+          {axisLabels.map((value) => <span key={value}>{shortCurrency(value)}</span>)}
+        </div>
+        <div className="annual-plot">
+          <div className="annual-grid-lines" aria-hidden="true">
+            {axisLabels.map((value) => <span key={value} />)}
+          </div>
+          <div className="annual-groups">
+            {items.map((item) => (
+              <button
+                className={`annual-group ${item.monthIndex === selectedMonth ? 'active' : ''} ${item.monthIndex === currentMonth ? 'current' : ''}`}
+                key={item.monthIndex}
+                onClick={() => onSelect(item.monthIndex)}
+                title={`${MONTHS[item.monthIndex]}: receitas ${formatCurrency(item.receitas)} · despesas ${formatCurrency(item.despesas)}`}
+                type="button"
+              >
+                <div className="annual-bar-pair">
+                  <span className="annual-bar income" style={{ height: `${barHeight(item.receitas, axisMax)}%` }} />
+                  <span className="annual-bar expense" style={{ height: `${barHeight(item.despesas, axisMax)}%` }} />
+                </div>
+                <strong>{MONTHS[item.monthIndex].slice(0, 3)}</strong>
+              </button>
+            ))}
+          </div>
+        </div>
       </div>
       <div className="chart-summary">
         <strong>{MONTHS[selected.monthIndex]}</strong>
@@ -323,6 +323,36 @@ function AnnualBars({ currentMonth, items, selectedMonth, onSelect }) {
         <span><i className="legend-dot income" /> Receitas</span>
         <span><i className="legend-dot expense" /> Despesas</span>
       </div>
+    </div>
+  );
+}
+
+function CategoryOverview({ items, total }) {
+  if (!items.length || !total) return <EmptyState title="Sem gastos categorizados neste mes." />;
+
+  return (
+    <div className="category-overview">
+      <div className="category-table">
+        {items.slice(0, 7).map(({ category, total: value }) => {
+          const percent = (value / total) * 100;
+          return (
+            <div className="category-table-row" key={category.id}>
+              <div className="category-table-main">
+                <span className="category-dot" style={{ background: category.color }} />
+                <strong>{category.name}</strong>
+                <small>{percent.toFixed(0)}%</small>
+              </div>
+              <div className="category-table-value">
+                <strong>{formatCurrency(value)}</strong>
+              </div>
+              <div className="meter">
+                <span style={{ width: `${Math.min(100, percent)}%`, background: category.color }} />
+              </div>
+            </div>
+          );
+        })}
+      </div>
+      <CategoryDonut items={items} total={total} />
     </div>
   );
 }
@@ -379,6 +409,14 @@ function CategoryDonut({ items, total }) {
 function barHeight(value, maxValue) {
   if (!value) return 4;
   return Math.max(8, (value / maxValue) * 100);
+}
+
+function niceAxisMax(value) {
+  const amount = Math.max(1, Number(value || 0));
+  const magnitude = 10 ** Math.floor(Math.log10(amount));
+  const normalized = amount / magnitude;
+  const rounded = normalized <= 2 ? 2 : normalized <= 5 ? 5 : 10;
+  return rounded * magnitude;
 }
 
 function shortCurrency(value) {
