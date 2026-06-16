@@ -15,6 +15,8 @@ export function AppShell({
   user,
 }) {
   const pageTitle = NAV_ITEMS.find((item) => item.id === page)?.label || 'Dashboard';
+  const displayName = user.displayName || 'Usuario';
+  const userInitial = displayName.trim().charAt(0).toUpperCase() || 'U';
 
   return (
     <div className="app-shell">
@@ -28,9 +30,11 @@ export function AppShell({
         </div>
 
         <div className="user-card">
-          <img src={user.photoURL || ''} alt="" />
-          <div>
-            <strong>{user.displayName || 'Usuario'}</strong>
+          {user.photoURL
+            ? <img src={user.photoURL} alt="" />
+            : <div className="user-avatar" aria-hidden="true">{userInitial}</div>}
+          <div className="user-card-info">
+            <strong>{displayName}</strong>
             <span>{user.email}</span>
           </div>
           <button className="icon-button" onClick={logout} title="Sair" type="button">
@@ -81,4 +85,3 @@ export function AppShell({
     </div>
   );
 }
-

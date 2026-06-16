@@ -1,13 +1,13 @@
 :root {
   color-scheme: dark;
-  --bg: #0a0b0e;
-  --bg-soft: #0f1014;
-  --surface: rgba(24, 26, 31, 0.86);
-  --surface-2: rgba(34, 37, 44, 0.84);
-  --surface-3: rgba(48, 52, 61, 0.82);
-  --surface-solid: #181a1f;
-  --line: rgba(255, 255, 255, 0.095);
-  --line-strong: rgba(255, 255, 255, 0.16);
+  --bg: #070809;
+  --bg-soft: #0d0e11;
+  --surface: rgba(21, 22, 26, 0.9);
+  --surface-2: rgba(29, 31, 36, 0.88);
+  --surface-3: rgba(39, 42, 48, 0.88);
+  --surface-solid: #15161a;
+  --line: rgba(255, 255, 255, 0.105);
+  --line-strong: rgba(255, 255, 255, 0.18);
   --text: #f5f5f7;
   --muted: #a7adb7;
   --subtle: #737985;
@@ -15,11 +15,11 @@
   --negative: #ff6b63;
   --info: #6ab1ff;
   --accent: #f6c969;
-  --radius-sm: 8px;
-  --radius: 12px;
-  --radius-lg: 18px;
-  --shadow: 0 18px 46px rgba(0, 0, 0, 0.24);
-  --shadow-soft: 0 8px 26px rgba(0, 0, 0, 0.18);
+  --radius-sm: 6px;
+  --radius: 8px;
+  --radius-lg: 10px;
+  --shadow: 0 18px 42px rgba(0, 0, 0, 0.22);
+  --shadow-soft: 0 8px 22px rgba(0, 0, 0, 0.16);
   --focus-ring: 0 0 0 4px rgba(106, 177, 255, 0.16);
 }
 
@@ -30,7 +30,7 @@
 body {
   margin: 0;
   min-width: 320px;
-  background: linear-gradient(180deg, #0b0c10 0%, var(--bg) 46%, #08090b 100%);
+  background: linear-gradient(180deg, #0b0c0e 0%, var(--bg) 52%, #060708 100%);
   color: var(--text);
   font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", Inter, "Segoe UI", ui-sans-serif, system-ui, sans-serif;
   font-size: 15px;
@@ -91,17 +91,17 @@ select:focus-visible {
 .app-shell {
   min-height: 100vh;
   display: grid;
-  grid-template-columns: 272px minmax(0, 1fr);
+  grid-template-columns: 260px minmax(0, 1fr);
 }
 
 .sidebar {
-  background: rgba(13, 15, 19, 0.86);
+  background: rgba(11, 12, 15, 0.88);
   border-right: 1px solid var(--line);
   display: flex;
   flex-direction: column;
   height: 100vh;
-  padding: 20px;
-  gap: 20px;
+  padding: 18px;
+  gap: 16px;
   position: sticky;
   top: 0;
   overflow-y: auto;
@@ -121,7 +121,7 @@ select:focus-visible {
 
 .brand {
   gap: 12px;
-  min-height: 48px;
+  min-height: 44px;
 }
 
 .brand strong {
@@ -142,9 +142,9 @@ select:focus-visible {
 }
 
 .brand-mark {
-  width: 44px;
-  height: 44px;
-  border-radius: 13px;
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
   background: rgba(50, 213, 131, 0.14);
   color: var(--positive);
   border: 1px solid rgba(50, 213, 131, 0.24);
@@ -155,28 +155,42 @@ select:focus-visible {
 }
 
 .brand-mark.large {
-  width: 58px;
-  height: 58px;
-  border-radius: 16px;
+  width: 56px;
+  height: 56px;
+  border-radius: 12px;
 }
 
 .user-card {
   gap: 10px;
-  padding: 11px;
+  padding: 10px;
   border: 1px solid var(--line);
   border-radius: var(--radius);
-  background: var(--surface);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  background: rgba(255, 255, 255, 0.045);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.035);
 }
 
-.user-card img {
+.user-card img,
+.user-avatar {
   width: 34px;
   height: 34px;
   border-radius: 50%;
+  flex: 0 0 auto;
+}
+
+.user-card img {
   background: var(--surface-3);
 }
 
-.user-card div {
+.user-avatar {
+  display: grid;
+  place-items: center;
+  color: #06120d;
+  font-weight: 850;
+  background: linear-gradient(145deg, rgba(50, 213, 131, 0.95), rgba(106, 177, 255, 0.86));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.28);
+}
+
+.user-card-info {
   min-width: 0;
   flex: 1;
 }
@@ -191,19 +205,19 @@ select:focus-visible {
 
 .nav-list {
   display: grid;
-  gap: 4px;
+  gap: 3px;
 }
 
 .nav-item {
   gap: 10px;
   width: 100%;
   border: 0;
-  border-radius: 10px;
+  border-radius: var(--radius);
   background: transparent;
   color: var(--muted);
-  padding: 10px 12px;
+  padding: 9px 11px;
   text-align: left;
-  min-height: 42px;
+  min-height: 40px;
   font-weight: 560;
 }
 
@@ -213,15 +227,15 @@ select:focus-visible {
 }
 
 .nav-item.active {
-  background: rgba(245, 245, 247, 0.095);
+  background: rgba(245, 245, 247, 0.105);
   color: var(--text);
-  box-shadow: inset 3px 0 0 var(--positive), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  box-shadow: inset 2px 0 0 var(--positive), inset 0 1px 0 rgba(255, 255, 255, 0.05);
 }
 
 .main {
   width: min(100%, 1480px);
   margin: 0 auto;
-  padding: 30px 34px 42px;
+  padding: 28px 32px 44px;
   min-width: 0;
 }
 
@@ -266,7 +280,7 @@ select:focus-visible {
 .content-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 18px;
+  gap: 16px;
   align-items: start;
 }
 
@@ -277,7 +291,7 @@ select:focus-visible {
 .stat-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 18px;
+  gap: 16px;
 }
 
 .stat-card,
@@ -287,16 +301,21 @@ select:focus-visible {
   background: var(--surface);
   border: 1px solid var(--line);
   border-radius: var(--radius-lg);
-  box-shadow: var(--shadow);
-  backdrop-filter: blur(22px);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.045), var(--shadow);
+  backdrop-filter: blur(18px);
 }
 
 .stat-card {
-  padding: 20px;
-  min-height: 118px;
+  padding: 18px;
+  min-height: 110px;
   display: grid;
   align-content: space-between;
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.052), rgba(255, 255, 255, 0.026));
+}
+
+.stat-card:hover,
+.panel:hover {
+  border-color: rgba(255, 255, 255, 0.135);
 }
 
 .stat-card span {
@@ -328,16 +347,16 @@ select:focus-visible {
 }
 
 .panel {
-  padding: 20px;
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.048), rgba(255, 255, 255, 0.024));
+  padding: 18px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.022));
 }
 
 .panel-header {
   display: flex;
   align-items: start;
   justify-content: space-between;
-  gap: 14px;
-  margin-bottom: 18px;
+  gap: 12px;
+  margin-bottom: 16px;
 }
 
 .panel h2 {
@@ -353,16 +372,16 @@ select:focus-visible {
 }
 
 .dashboard-grid {
-  gap: 20px;
+  gap: 18px;
 }
 
 .dashboard-hero {
   position: relative;
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
-  gap: 22px;
+  gap: 20px;
   overflow: hidden;
-  padding: 24px;
+  padding: 22px;
   border: 1px solid var(--line);
   border-radius: var(--radius-lg);
   background:
@@ -393,7 +412,7 @@ select:focus-visible {
 
 .dashboard-hero h2 {
   margin: 6px 0 0;
-  font-size: clamp(1.8rem, 2.5vw, 2.65rem);
+  font-size: clamp(1.72rem, 2.35vw, 2.48rem);
   line-height: 1.02;
   font-weight: 780;
 }
@@ -419,12 +438,12 @@ select:focus-visible {
   grid-column: 1 / -1;
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 12px;
+  gap: 10px;
 }
 
 .dashboard-metric {
   min-width: 0;
-  padding: 14px;
+  padding: 13px;
   border: 1px solid var(--line);
   border-radius: var(--radius);
   background: rgba(255, 255, 255, 0.045);
@@ -432,9 +451,9 @@ select:focus-visible {
 }
 
 .dashboard-metric-icon {
-  width: 34px;
-  height: 34px;
-  border-radius: 11px;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius);
   display: grid;
   place-items: center;
   margin-bottom: 12px;
@@ -481,8 +500,9 @@ select:focus-visible {
   padding: 10px 12px;
   border: 1px solid var(--line);
   border-radius: var(--radius);
-  background: var(--surface-2);
+  background: rgba(255, 255, 255, 0.055);
   text-align: right;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
 }
 
 .dashboard-ratio strong {
@@ -494,7 +514,7 @@ select:focus-visible {
 .form-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 14px;
+  gap: 12px;
 }
 
 .form-grid.compact {
@@ -507,7 +527,7 @@ select:focus-visible {
 
 .field {
   display: grid;
-  gap: 7px;
+  gap: 6px;
 }
 
 .field span {
@@ -521,12 +541,12 @@ select:focus-visible {
 input,
 select {
   width: 100%;
-  min-height: 44px;
+  min-height: 42px;
   border: 1px solid var(--line);
-  border-radius: 10px;
+  border-radius: var(--radius);
   background: var(--surface-2);
   color: var(--text);
-  padding: 0 12px;
+  padding: 0 11px;
   outline: 0;
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.035);
   transition: background-color 0.16s ease, border-color 0.16s ease, box-shadow 0.16s ease;
@@ -535,7 +555,7 @@ select {
 input:focus,
 select:focus {
   border-color: var(--info);
-  background: rgba(39, 43, 52, 0.94);
+  background: rgba(38, 40, 46, 0.96);
   box-shadow: var(--focus-ring);
 }
 
@@ -546,12 +566,12 @@ select:focus {
 
 .form-hint {
   align-self: end;
-  min-height: 44px;
+  min-height: 42px;
   display: flex;
   align-items: center;
   padding: 0 12px;
   border: 1px solid rgba(61, 210, 141, 0.35);
-  border-radius: 10px;
+  border-radius: var(--radius);
   background: rgba(61, 210, 141, 0.08);
   color: var(--muted);
   font-size: 0.82rem;
@@ -566,20 +586,20 @@ select:focus {
 .text-button,
 .icon-button {
   border: 0;
-  border-radius: 10px;
+  border-radius: var(--radius);
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 8px;
-  min-height: 42px;
+  min-height: 40px;
 }
 
 .primary-button {
   background: var(--positive);
   color: #06120d;
   font-weight: 800;
-  padding: 0 17px;
-  box-shadow: 0 10px 24px rgba(50, 213, 131, 0.18), inset 0 1px 0 rgba(255, 255, 255, 0.32);
+  padding: 0 16px;
+  box-shadow: 0 10px 22px rgba(50, 213, 131, 0.16), inset 0 1px 0 rgba(255, 255, 255, 0.3);
 }
 
 .primary-button:hover {
@@ -591,7 +611,7 @@ select:focus {
   background: var(--surface-3);
   color: var(--text);
   border: 1px solid var(--line);
-  padding: 0 17px;
+  padding: 0 16px;
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
 }
 
@@ -617,8 +637,8 @@ select:focus {
 }
 
 .icon-button {
-  width: 38px;
-  height: 38px;
+  width: 36px;
+  height: 36px;
   background: var(--surface-2);
   color: var(--muted);
   border: 1px solid var(--line);
@@ -638,18 +658,27 @@ select:focus {
 
 .list {
   display: grid;
-  gap: 9px;
+  gap: 8px;
 }
 
 .list-row {
-  gap: 12px;
-  padding: 12px;
+  gap: 11px;
+  padding: 11px;
   border: 1px solid var(--line);
   border-radius: var(--radius);
-  background: var(--surface-2);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.047), rgba(255, 255, 255, 0.028));
   min-width: 0;
   overflow: hidden;
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.035);
+}
+
+.list-row:hover,
+.budget-row:hover,
+.category-chip:hover,
+.asset-row:hover,
+.credit-card:hover {
+  border-color: rgba(255, 255, 255, 0.16);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.064), rgba(255, 255, 255, 0.035));
 }
 
 .row-icon {
@@ -677,6 +706,7 @@ select:focus {
 .list-row > strong {
   flex: 0 0 auto;
   white-space: nowrap;
+  font-size: 0.96rem;
 }
 
 .pill {
@@ -713,7 +743,7 @@ select:focus {
   flex-wrap: wrap;
   background: var(--surface-2);
   border: 1px solid var(--line);
-  border-radius: 12px;
+  border-radius: var(--radius);
   padding: 4px;
 }
 
@@ -721,7 +751,7 @@ select:focus {
   min-height: 32px;
   padding: 0 12px;
   border: 0;
-  border-radius: 9px;
+  border-radius: 6px;
   background: transparent;
   color: var(--muted);
   font-weight: 680;
@@ -747,11 +777,12 @@ select:focus {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr) 130px auto;
   align-items: center;
-  gap: 12px;
-  padding: 12px;
+  gap: 11px;
+  padding: 11px;
   border: 1px solid var(--line);
   border-radius: var(--radius);
-  background: var(--surface-2);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.047), rgba(255, 255, 255, 0.028));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.035);
 }
 
 .budget-main {
@@ -770,19 +801,18 @@ select:focus {
 .asset-row {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 12px;
+  gap: 11px;
+  padding: 11px;
   border: 1px solid var(--line);
   border-radius: var(--radius);
-  background: var(--surface-2);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.047), rgba(255, 255, 255, 0.028));
   min-width: 0;
   cursor: pointer;
   transition: background-color 0.16s ease, border-color 0.16s ease;
 }
 
 .asset-row:hover {
-  border-color: var(--line-strong);
-  background: rgba(40, 44, 53, 0.9);
+  border-color: rgba(255, 255, 255, 0.16);
 }
 
 .asset-row:focus-visible {
@@ -810,8 +840,8 @@ select:focus {
 .allocation-form {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 12px;
-  padding: 12px;
+  gap: 11px;
+  padding: 11px;
   border: 1px solid var(--line);
   border-radius: var(--radius);
   background: rgba(106, 177, 255, 0.075);
@@ -820,10 +850,10 @@ select:focus {
 .allocation-history {
   display: grid;
   gap: 8px;
-  padding: 12px;
+  padding: 11px;
   border: 1px solid var(--line);
   border-radius: var(--radius);
-  background: var(--surface);
+  background: rgba(255, 255, 255, 0.035);
 }
 
 .closing-hero {
@@ -884,10 +914,10 @@ select:focus {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 11px;
+  padding: 10px;
   border: 1px solid var(--line);
   border-radius: var(--radius);
-  background: var(--surface-2);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.047), rgba(255, 255, 255, 0.028));
 }
 
 .pending-block {
@@ -916,9 +946,10 @@ select:focus {
 .report-kpi {
   border: 1px solid var(--line);
   border-radius: var(--radius);
-  background: var(--surface-2);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.047), rgba(255, 255, 255, 0.028));
   min-width: 0;
-  padding: 13px;
+  padding: 12px;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.035);
 }
 
 .closing-metric span,
@@ -942,8 +973,8 @@ select:focus {
 .cash-box {
   border: 1px solid var(--line);
   border-radius: var(--radius);
-  background: var(--surface-2);
-  padding: 15px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.047), rgba(255, 255, 255, 0.028));
+  padding: 14px;
 }
 
 .cash-box span,
@@ -987,8 +1018,8 @@ select:focus {
 .reserve-card {
   border: 1px solid var(--line);
   border-radius: var(--radius);
-  background: var(--surface-2);
-  padding: 15px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.047), rgba(255, 255, 255, 0.028));
+  padding: 14px;
   display: grid;
   gap: 8px;
   min-width: 0;
@@ -1065,10 +1096,10 @@ select:focus {
   display: grid;
   gap: 8px;
   min-width: 0;
-  padding: 15px;
+  padding: 14px;
   border: 1px solid var(--line);
   border-radius: var(--radius);
-  background: var(--surface-2);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.047), rgba(255, 255, 255, 0.028));
 }
 
 .projection-card span,
@@ -1110,10 +1141,10 @@ select:focus {
 
 .projection-details {
   margin-top: 12px;
-  padding: 12px;
+  padding: 11px;
   border: 1px solid var(--line);
   border-radius: var(--radius);
-  background: var(--surface-2);
+  background: rgba(255, 255, 255, 0.035);
 }
 
 .alert-list {
@@ -1126,10 +1157,10 @@ select:focus {
   align-items: center;
   gap: 10px;
   min-width: 0;
-  padding: 12px;
+  padding: 11px;
   border: 1px solid var(--line);
   border-radius: var(--radius);
-  background: var(--surface-2);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.047), rgba(255, 255, 255, 0.028));
 }
 
 .alert-row.high {
@@ -1165,10 +1196,10 @@ select:focus {
   align-items: flex-start;
   gap: 12px;
   min-width: 0;
-  padding: 12px;
+  padding: 11px;
   border: 1px solid var(--line);
   border-radius: var(--radius);
-  background: var(--surface-2);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.047), rgba(255, 255, 255, 0.028));
 }
 
 .health-row.high {
@@ -1240,10 +1271,10 @@ select:focus {
   align-items: center;
   gap: 9px;
   min-width: 0;
-  padding: 11px;
+  padding: 10px;
   border: 1px solid var(--line);
   border-radius: var(--radius);
-  background: var(--surface-2);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.047), rgba(255, 255, 255, 0.028));
   color: var(--muted);
 }
 
@@ -1506,13 +1537,13 @@ select:focus {
 .category-overview {
   display: grid;
   grid-template-columns: minmax(0, 1.05fr) minmax(360px, 0.95fr);
-  gap: 22px;
+  gap: 18px;
   align-items: center;
 }
 
 .category-table {
   display: grid;
-  gap: 12px;
+  gap: 10px;
   min-width: 0;
 }
 
@@ -1570,7 +1601,7 @@ select:focus {
 .donut-layout {
   display: grid;
   grid-template-columns: 190px minmax(0, 1fr);
-  gap: 20px;
+  gap: 18px;
   align-items: center;
 }
 
@@ -1693,28 +1724,28 @@ select:focus {
   background: var(--surface);
   border: 1px solid var(--line);
   border-radius: var(--radius-lg);
-  box-shadow: var(--shadow);
-  padding: 20px;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.045), var(--shadow);
+  padding: 18px;
 }
 
 .card-grid,
 .chip-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 12px;
+  gap: 10px;
 }
 
 .credit-card {
   min-height: 138px;
   border: 1px solid var(--line);
-  border-left-width: 4px;
+  border-left-width: 3px;
   border-radius: var(--radius-lg);
-  padding: 16px;
-  background: var(--surface-2);
+  padding: 14px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.052), rgba(255, 255, 255, 0.028));
   display: grid;
-  gap: 14px;
+  gap: 12px;
   position: relative;
-  box-shadow: var(--shadow-soft);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.035), var(--shadow-soft);
 }
 
 .credit-card span {
@@ -1732,7 +1763,7 @@ select:focus {
 }
 
 .invoice-card.selected {
-  background: linear-gradient(180deg, rgba(106, 177, 255, 0.11), var(--surface-2));
+  background: linear-gradient(180deg, rgba(106, 177, 255, 0.13), rgba(255, 255, 255, 0.032));
   border-color: var(--info) !important;
 }
 
@@ -1760,8 +1791,8 @@ select:focus {
   min-width: 0;
   padding: 9px;
   border: 1px solid var(--line);
-  border-radius: 10px;
-  background: rgba(255, 255, 255, 0.035);
+  border-radius: var(--radius);
+  background: rgba(255, 255, 255, 0.04);
 }
 
 .invoice-mini-grid span {
@@ -1795,8 +1826,8 @@ select:focus {
 .invoice-detail {
   border-top: 1px solid var(--line);
   display: grid;
-  gap: 16px;
-  padding-top: 18px;
+  gap: 14px;
+  padding-top: 16px;
 }
 
 .invoice-detail .pill {
@@ -1821,7 +1852,7 @@ select:focus {
 
 .invoice-detail-grid {
   display: grid;
-  gap: 14px;
+  gap: 12px;
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
@@ -1855,11 +1886,12 @@ select:focus {
 
 .category-chip {
   gap: 10px;
-  min-height: 46px;
+  min-height: 44px;
   border: 1px solid var(--line);
   border-radius: var(--radius);
-  background: var(--surface-2);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.047), rgba(255, 255, 255, 0.028));
   padding: 8px 10px;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.035);
 }
 
 .category-chip strong {
@@ -1887,8 +1919,9 @@ select:focus {
 .template-list {
   border: 1px solid var(--line);
   border-radius: var(--radius);
-  background: var(--surface-2);
-  padding: 12px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.047), rgba(255, 255, 255, 0.028));
+  padding: 11px;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.035);
 }
 
 .template-tools {
@@ -1907,8 +1940,8 @@ select:focus {
 .restore-options button {
   min-height: 38px;
   border: 1px solid var(--line);
-  border-radius: 10px;
-  background: var(--surface);
+  border-radius: var(--radius);
+  background: rgba(255, 255, 255, 0.04);
   color: var(--muted);
   padding: 0 12px;
 }
@@ -1959,8 +1992,8 @@ select:focus {
 
 .import-stats span {
   border: 1px solid var(--line);
-  border-radius: 10px;
-  background: var(--surface);
+  border-radius: var(--radius);
+  background: rgba(255, 255, 255, 0.04);
   color: var(--muted);
   padding: 9px 11px;
 }
@@ -1983,7 +2016,7 @@ select:focus {
   border: 1px dashed var(--line);
   border-radius: var(--radius);
   color: var(--muted);
-  padding: 24px;
+  padding: 20px;
   text-align: center;
   background: rgba(255, 255, 255, 0.025);
 }
@@ -2016,7 +2049,7 @@ select:focus {
 .setup-box,
 .login-panel {
   width: min(430px, 100%);
-  padding: 30px;
+  padding: 28px;
   display: grid;
   gap: 16px;
 }
@@ -2036,7 +2069,7 @@ select:focus {
   background: var(--surface-2);
   border: 1px solid var(--line);
   border-radius: var(--radius);
-  padding: 12px;
+  padding: 11px;
   overflow-x: auto;
 }
 
@@ -2065,10 +2098,14 @@ select:focus {
     min-height: auto;
     height: auto;
     overflow: visible;
+    padding: 16px;
+    border-right: 0;
+    border-bottom: 1px solid var(--line);
   }
 
   .nav-list {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 6px;
   }
 
   .stat-grid,
@@ -2092,7 +2129,35 @@ select:focus {
 
 @media (max-width: 720px) {
   .main {
-    padding: 18px;
+    padding: 16px;
+  }
+
+  .sidebar {
+    padding: 14px;
+    gap: 12px;
+  }
+
+  .brand {
+    min-height: 40px;
+  }
+
+  .user-card {
+    padding: 9px;
+  }
+
+  .nav-item {
+    min-height: 38px;
+    padding: 8px 10px;
+  }
+
+  .panel,
+  .modal-panel {
+    padding: 16px;
+  }
+
+  .stat-card {
+    min-height: 96px;
+    padding: 16px;
   }
 
   .topbar,
@@ -2127,7 +2192,11 @@ select:focus {
 
   .dashboard-hero {
     grid-template-columns: 1fr;
-    padding: 20px;
+    padding: 18px;
+  }
+
+  .dashboard-hero h2 {
+    font-size: 1.72rem;
   }
 
   .dashboard-hero-actions {
@@ -2229,6 +2298,19 @@ select:focus {
   .projection-grid,
   .report-kpi-grid {
     grid-template-columns: 1fr;
+  }
+
+  .cash-equation,
+  .wallet-totals,
+  .projection-details {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .list-row > strong,
+  .alert-row > strong,
+  .asset-row > strong {
+    align-self: flex-start;
   }
 
   .closing-readiness-top {
